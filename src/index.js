@@ -2,19 +2,6 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // =====================================================
-    // 0. 런타임 Secret 확인용
-    // =====================================================
-    if (
-      url.pathname === "/api/env-check" ||
-      url.pathname === "/api/env-check/"
-    ) {
-      return Response.json({
-        hasClientId: !!env.NAVER_CLIENT_ID,
-        hasClientSecret: !!env.NAVER_CLIENT_SECRET
-      });
-    }
-
     const json = (data, init = {}) =>
       new Response(JSON.stringify(data), {
         ...init,
@@ -24,6 +11,19 @@ export default {
           ...(init.headers || {})
         }
       });
+
+    // =====================================================
+    // 0. 런타임 Secret 확인용
+    // =====================================================
+    if (
+      url.pathname === "/api/env-check" ||
+      url.pathname === "/api/env-check/"
+    ) {
+      return json({
+        hasClientId: !!env.NAVER_CLIENT_ID,
+        hasClientSecret: !!env.NAVER_CLIENT_SECRET
+      });
+    }
 
     const stripHtml = (v = "") =>
       String(v)
@@ -44,6 +44,13 @@ export default {
       });
     }
 
+    // =====================================================
+    // 1. 네이버 블로그 후기
+    // - 1차: 장소명
+    // - 2차: 장소명 + 후기
+    // - 3차: 장소명 + 지역
+    // - 0건이면 자동으로 다음 검색어 시도
+    // =====================================================
     if (
       url.pathname === "/api/blog-reviews" ||
       url.pathname === "/api/blog-reviews/"
@@ -73,61 +80,75 @@ export default {
         const areaTokens = address
           .split(/\s+/)
           .filter(Boolean)
-          .slice(0, 3)
+          .slice(0, 2)
           .join(" ");
 
-        const query = [place, areaTokens, "후기"].filter(Boolean).join(" ");
+        const queryCandidates = [
+          place,
+          `${place} 후기`,
+          areaTokens ? `${place} ${areaTokens}` : "",
+          areaTokens ? `${place.replace(/\s*(점|지점)$/,"")} ${areaTokens}` : ""
+        ]
+          .map(v => v.trim())
+          .filter(Boolean)
+          .filter((v, i, a) => a.indexOf(v) === i);
 
-        const apiUrl =
-          "https://naverapihub.apigw.ntruss.com/search/v1/blog" +
-          "?query=" + encodeURIComponent(query) +
-          "&display=20&start=1&sort=sim&format=json";
+        async function searchBlog(query) {
+          const apiUrl =
+            "https://naverapihub.apigw.ntruss.com/search/v1/blog" +
+            "?query=" + encodeURIComponent(query) +
+            "&display=20&start=1&sort=sim&format=json";
 
-        const response = await fetch(apiUrl, {
-          headers: {
-            "X-NCP-APIGW-API-KEY-ID": env.NAVER_CLIENT_ID,
-            "X-NCP-APIGW-API-KEY": env.NAVER_CLIENT_SECRET
+          const response = await fetch(apiUrl, {
+            headers: {
+              "X-NCP-APIGW-API-KEY-ID": env.NAVER_CLIENT_ID,
+              "X-NCP-APIGW-API-KEY": env.NAVER_CLIENT_SECRET
+            }
+          });
+
+          const raw = await response.text();
+
+          if (!response.ok) {
+            let detail = raw;
+            try {
+              const parsed = JSON.parse(raw);
+              detail =
+                parsed?.errorMessage ||
+                parsed?.message ||
+                parsed?.error?.message ||
+                raw;
+            } catch (_) {}
+
+            const err = new Error("네이버 블로그 검색 API 호출 실패");
+            err.status = response.status;
+            err.detail = detail;
+            throw err;
           }
-        });
 
-        const raw = await response.text();
-
-        if (!response.ok) {
-          let detail = raw;
           try {
-            const parsed = JSON.parse(raw);
-            detail =
-              parsed?.errorMessage ||
-              parsed?.message ||
-              parsed?.error?.message ||
-              raw;
-          } catch (_) {}
-
-          return json(
-            {
-              ok: false,
-              error: "네이버 블로그 검색 API 호출 실패",
-              status: response.status,
-              detail
-            },
-            { status: 502 }
-          );
+            return JSON.parse(raw);
+          } catch (_) {
+            throw new Error("네이버 API 응답을 JSON으로 읽지 못했습니다.");
+          }
         }
 
-        let data;
-        try {
-          data = JSON.parse(raw);
-        } catch (_) {
-          return json(
-            {
-              ok: false,
-              error: "네이버 API 응답을 JSON으로 읽지 못했습니다."
-            },
-            { status: 502 }
-          );
+        let data = null;
+        let query = queryCandidates[0];
+
+        for (const candidate of queryCandidates) {
+          const result = await searchBlog(candidate);
+          data = result;
+          query = candidate;
+
+          if (
+            Number(result?.total || 0) > 0 ||
+            (Array.isArray(result?.items) && result.items.length > 0)
+          ) {
+            break;
+          }
         }
 
-        const items = Array.isArray(data.items) ? data.items : [];
+        const items = Array.isArray(data?.items) ? data.items : [];
 
         const positiveWords = [
           "좋", "추천", "만족", "재방문", "깨끗", "친절", "재밌", "재미",
@@ -183,7 +204,9 @@ export default {
 
         const positivePct = toPercent(positive);
         const negativePct = toPercent(negative);
-        const neutralPct = Math.max(0, 100 - positivePct - negativePct);
+        const neutralPct = sampleSize
+          ? Math.max(0, 100 - positivePct - negativePct)
+          : 0;
 
         const topWords = (map, limit = 5) =>
           [...map.entries()]
@@ -203,7 +226,8 @@ export default {
         return json({
           ok: true,
           query,
-          total: Number(data.total || 0),
+          attemptedQueries: queryCandidates,
+          total: Number(data?.total || 0),
           reviews,
           sentiment: {
             positive: positivePct,
@@ -217,13 +241,16 @@ export default {
             negative: topWords(negCounts)
           }
         });
+
       } catch (error) {
         return json(
           {
             ok: false,
-            error: error?.message || "블로그 후기를 불러오지 못했습니다."
+            error: error?.message || "블로그 후기를 불러오지 못했습니다.",
+            status: error?.status || 500,
+            detail: error?.detail || ""
           },
-          { status: 500 }
+          { status: error?.status ? 502 : 500 }
         );
       }
     }
