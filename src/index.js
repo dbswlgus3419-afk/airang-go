@@ -446,94 +446,102 @@ export default {
           }
         }
 
-        // 화면용 8개 연령대 버킷
-        // 숫자가 명시된 경우 숫자 연령을 우선하고,
-        // "유치원생"처럼 숫자 없는 표현만 별도 그룹에 반영
+        // -----------------------------------------------------
+        // 연령대 분포 v2
+        // 긍정/중립/부정과 무관하게 분석 대상 최대 30건 전체에서
+        // 실제로 언급된 아이 연령 표현을 모아 분포를 계산
+        // -----------------------------------------------------
         const ageBuckets = [
-          { key:"1", label:"1세", positive:0, negative:0, neutral:0, total:0 },
-          { key:"2", label:"2세", positive:0, negative:0, neutral:0, total:0 },
-          { key:"3", label:"3세", positive:0, negative:0, neutral:0, total:0 },
-          { key:"4", label:"4세", positive:0, negative:0, neutral:0, total:0 },
-          { key:"5", label:"5세", positive:0, negative:0, neutral:0, total:0 },
-          { key:"kindergarten", label:"유치원생", positive:0, negative:0, neutral:0, total:0 },
-          { key:"elementaryLow", label:"초등 저학년", positive:0, negative:0, neutral:0, total:0 },
-          { key:"elementaryHigh", label:"초등 고학년", positive:0, negative:0, neutral:0, total:0 }
+          { key:"1", label:"1세", mentions:0, reviewCount:0 },
+          { key:"2", label:"2세", mentions:0, reviewCount:0 },
+          { key:"3", label:"3세", mentions:0, reviewCount:0 },
+          { key:"4", label:"4세", mentions:0, reviewCount:0 },
+          { key:"5", label:"5세", mentions:0, reviewCount:0 },
+          { key:"kindergarten", label:"유치원생", mentions:0, reviewCount:0 },
+          { key:"elementaryLow", label:"초등 저학년", mentions:0, reviewCount:0 },
+          { key:"elementaryHigh", label:"초등 고학년", mentions:0, reviewCount:0 }
         ];
-        const bucketMap = new Map(ageBuckets.map(x=>[x.key,x]));
+        const ageBucketMap = new Map(ageBuckets.map(x=>[x.key,x]));
 
-        function addAgeBucket(key, tone){
-          const b=bucketMap.get(String(key));
+        function addAgeMention(key, reviewSeen){
+          const b=ageBucketMap.get(String(key));
           if(!b) return;
-          b.total++;
-          if(tone==="positive") b.positive++;
-          else if(tone==="negative") b.negative++;
-          else b.neutral++;
+          b.mentions += 1;
+          if(!reviewSeen.has(String(key))){
+            b.reviewCount += 1;
+            reviewSeen.add(String(key));
+          }
         }
 
         for(const row of analysed){
           const text=row.text;
-
-          // 정확한 숫자 나이: 1~5세
-          const exactAges=new Set();
+          const reviewSeen=new Set();
           let m;
-          const ageRe=/(?:만\s*)?([1-5])\s*(?:살|세)\b/g;
-          while((m=ageRe.exec(text))!==null) exactAges.add(Number(m[1]));
 
-          // 개월 수 → 1~5세 환산
+          // 숫자로 명확히 적힌 1~5세
+          const ageRe=/(?:만\s*)?([1-5])\s*(?:살|세)\b/g;
+          while((m=ageRe.exec(text))!==null){
+            addAgeMention(m[1], reviewSeen);
+          }
+
+          // 개월 수 → 연령 환산
           const monthRe=/([0-9]{1,2})\s*개월/g;
           while((m=monthRe.exec(text))!==null){
             const months=Number(m[1]);
             const age=Math.floor(months/12);
-            if(age>=1 && age<=5) exactAges.add(age);
-          }
-          if(text.includes("두돌")) exactAges.add(2);
-
-          for(const age of exactAges) addAgeBucket(String(age), row.tone);
-
-          // 정확한 숫자 나이가 없을 때만 유치원생 그룹 사용
-          if(!exactAges.size && (text.includes("유치원생") || text.includes("유치원") || text.includes("미취학"))){
-            addAgeBucket("kindergarten", row.tone);
+            if(age>=1 && age<=5) addAgeMention(String(age), reviewSeen);
           }
 
-          // 초등 학년
-          let elementaryMatched=false;
+          // 한국식 표현
+          if(text.includes("두돌")) addAgeMention("2", reviewSeen);
+
+          // 숫자 나이가 명확하지 않은 경우 유치원생 그룹
+          const hasExactAge=[...reviewSeen].some(x=>/^[1-5]$/.test(x));
+          if(!hasExactAge && (text.includes("유치원생") || text.includes("유치원") || text.includes("미취학"))){
+            addAgeMention("kindergarten", reviewSeen);
+          }
+
+          // 초등 저/고학년
+          let gradeMatched=false;
           const gradeRe=/초\s*([1-6])\b/g;
           while((m=gradeRe.exec(text))!==null){
-            elementaryMatched=true;
+            gradeMatched=true;
             const grade=Number(m[1]);
-            addAgeBucket(grade<=3 ? "elementaryLow" : "elementaryHigh", row.tone);
+            addAgeMention(grade<=3 ? "elementaryLow" : "elementaryHigh", reviewSeen);
           }
-          if(!elementaryMatched && text.includes("초등 저학년")) addAgeBucket("elementaryLow", row.tone);
-          if(!elementaryMatched && text.includes("초등 고학년")) addAgeBucket("elementaryHigh", row.tone);
+          if(!gradeMatched && (text.includes("초등 저학년") || text.includes("초등저학년"))){
+            addAgeMention("elementaryLow", reviewSeen);
+          }
+          if(!gradeMatched && (text.includes("초등 고학년") || text.includes("초등고학년"))){
+            addAgeMention("elementaryHigh", reviewSeen);
+          }
         }
 
-        // 추천 비중은 긍정 맥락으로 잡힌 연령 언급 전체를 100으로 계산
-        const positiveAgeMentions=ageBuckets.reduce((sum,x)=>sum+x.positive,0);
-        const ageDistribution=ageBuckets.map(x=>({
+        // "연령 언급 전체"를 100으로 놓고 비중 계산
+        const totalAgeMentions = ageBuckets.reduce((sum,x)=>sum+x.mentions,0);
+
+        const ageDistribution = ageBuckets.map(x=>({
           ...x,
-          percentage: positiveAgeMentions ? Math.round((x.positive/positiveAgeMentions)*100) : 0
+          percentage: totalAgeMentions ? Math.round((x.mentions/totalAgeMentions)*100) : 0
         }));
 
-        // 반올림 합계 보정
-        if(positiveAgeMentions){
+        // 반올림 오차 보정
+        if(totalAgeMentions){
           const sumPct=ageDistribution.reduce((s,x)=>s+x.percentage,0);
           if(sumPct!==100){
-            const top=ageDistribution.reduce((a,b)=>a.positive>=b.positive?a:b);
+            const top=ageDistribution.reduce((a,b)=>a.mentions>=b.mentions?a:b);
             top.percentage=Math.max(0,top.percentage+(100-sumPct));
           }
         }
 
-        const ageDataEnough = positiveAgeMentions >= 3;
+        const ageDataEnough = totalAgeMentions > 0;
         const topAge = ageDataEnough
           ? [...ageDistribution].sort((a,b)=>b.percentage-a.percentage)[0]
           : null;
 
-        let ageSummary="";
-        if(ageDataEnough && topAge && topAge.percentage>0){
-          ageSummary=`후기에서는 ${topAge.label} 아이와 이용하기 좋다는 긍정 언급 비중이 가장 높아요.`;
-        }else{
-          ageSummary="아직 추천 연령대를 판단할 만큼 관련 후기가 충분하지 않아요.";
-        }
+        const ageSummary = ageDataEnough && topAge && topAge.percentage>0
+          ? `분석한 후기에서 ${topAge.label} 연령 언급 비중이 가장 높아요.`
+          : "분석한 후기에서 아이 연령이 구체적으로 언급된 내용을 찾지 못했어요.";
 
         const reviews = items.slice(0, 4).map((item) => ({
           title: stripHtml(item.title),
@@ -546,7 +554,7 @@ export default {
 
         return json({
           ok: true,
-          analysisVersion: "reaction-v7-age-chart",
+          analysisVersion: "reaction-v9-age-all-reviews",
           query,
           attemptedQueries: queryCandidates,
           total: primaryTotal,
@@ -580,7 +588,8 @@ export default {
           ageAnalysis: {
             summary: ageSummary,
             enoughData: ageDataEnough,
-            positiveMentionCount: positiveAgeMentions,
+            totalMentions: totalAgeMentions,
+            analysedReviews: sampleSize,
             distribution: ageDistribution
           }
         });
