@@ -46,9 +46,33 @@ button,input,select{font:inherit}button{cursor:pointer}a{text-decoration:none;co
 .drawerBack{position:fixed;inset:0;background:rgba(31,26,20,.48);z-index:100;display:none}.drawer{position:absolute;right:0;top:0;width:min(620px,100%);height:100%;background:#fff;overflow:auto}.drawerHead{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;z-index:2}.drawerHead b{font-size:18px}.close{margin-left:auto;border:0;width:36px;height:36px;border-radius:50%;background:#f3f1ed}.heroImg{height:300px;background:#efede9}.heroImg img{width:100%;height:100%;object-fit:cover}
 .detail{padding:18px}.detail h2{margin:5px 0 7px;font-size:27px}.dCat{color:var(--brand);font-size:12px;font-weight:900}.dAddr{color:var(--muted);font-size:13px;line-height:1.55}
 .detailBtns{display:flex;gap:8px;margin-top:15px}.detailBtns a{flex:1;text-align:center;border:1px solid var(--line);border-radius:11px;padding:11px;font-weight:900;font-size:13px}.detailBtns a.primary{background:#03c75a;color:#fff;border-color:#03c75a}
-.dSection{border-top:1px solid var(--line);margin-top:22px;padding-top:20px}.dSection h3{margin:0 0 11px}.sentiment{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.sent{background:#f7f5f2;border-radius:12px;padding:14px;text-align:center}.sent b{display:block;font-size:20px}.sent span{font-size:11px;color:var(--muted)}
+.dSection{border-top:1px solid var(--line);margin-top:22px;padding-top:20px}.dSection h3{margin:0 0 11px}.sentimentWrap{border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,#fff 0%,#fcfbf8 100%);padding:16px;box-shadow:0 5px 18px rgba(55,45,35,.045)}
+.sentimentHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.sentimentHead strong{font-size:14px;letter-spacing:-.2px}
+.sentimentSample{font-size:10px;color:#746d65;background:#f3f0eb;border-radius:999px;padding:6px 9px;white-space:nowrap}
+.sentimentBar{height:10px;display:flex;border-radius:999px;overflow:hidden;background:#ece9e4;margin-bottom:13px}
+.sentimentBar i{display:block;height:100%;transition:width .35s ease}
+.sentimentBar .barPos{background:linear-gradient(90deg,#39bd72,#7bd49c)}
+.sentimentBar .barNeu{background:linear-gradient(90deg,#aeb8c6,#d2d8df)}
+.sentimentBar .barNeg{background:linear-gradient(90deg,#ff8b79,#ffb2a6)}
+.sentiment{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sent{position:relative;overflow:hidden;border-radius:14px;padding:13px 10px 12px;text-align:left;border:1px solid transparent;background:#f7f5f2}
+.sent:before{content:"";position:absolute;inset:0 0 auto 0;height:3px}
+.sent.pos{background:#f2fbf5;border-color:#d9f1e1}.sent.pos:before{background:#40bf76}
+.sent.neu{background:#f5f7fa;border-color:#e1e6ed}.sent.neu:before{background:#8d9aad}
+.sent.neg{background:#fff5f2;border-color:#f9ddd6}.sent.neg:before{background:#ee7a69}
+.sentTop{display:flex;align-items:center;gap:6px;color:#625b53;font-size:10px;font-weight:850}
+.sentIcon{width:23px;height:23px;border-radius:50%;display:grid;place-items:center;font-size:12px}
+.pos .sentIcon{background:#dff5e6;color:#238850}.neu .sentIcon{background:#e5eaf1;color:#53647d}.neg .sentIcon{background:#ffe2dc;color:#bd4e40}
+.sent b{display:block;font-size:22px;letter-spacing:-.7px;margin-top:7px;line-height:1}
+.pos b{color:#15944d}.neu b{color:#4e617c}.neg b{color:#d85647}
+.sent small{display:block;margin-top:5px;font-size:9px;color:#8a837b}
+.sentimentEmpty{padding:18px 14px;text-align:center;border:1px dashed #d8d2ca;border-radius:14px;background:#faf9f7;color:#7b746c}
+.sentimentEmpty b{display:block;color:#403a34;font-size:14px;margin-bottom:4px}
+.sentimentEmpty span{font-size:11px;line-height:1.55}
+
 .pending{background:#faf8f5;border-radius:12px;padding:13px;color:#766f67;font-size:12px;line-height:1.55}.review{border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:8px}.review p{font-size:12px;color:var(--muted);margin:5px 0 0}.moreLink{display:block;text-align:center;border:1px solid var(--line);border-radius:11px;padding:11px;margin-top:10px;font-weight:900;font-size:13px}
-.blogSummary{margin-top:10px;padding:12px;border-radius:12px;background:#fbfaf7;border:1px solid var(--line)}
+.blogSummary{margin-top:10px;padding:13px 14px;border-radius:14px;background:#fffaf3;border:1px solid #eee2d3;box-shadow:0 3px 12px rgba(55,45,35,.03)}
 .blogSummary small{display:block;color:var(--muted);line-height:1.45;margin-top:6px}.kwRow{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.kw{font-size:10px;padding:5px 8px;border-radius:999px;background:#f2f0ec;color:#665f57}.kw.pos{background:#edf8f0;color:#267143}.kw.neg{background:#fff0ed;color:#a94a3a}
 .review{display:block;color:inherit}.review:hover{border-color:#bcb4aa;background:#fcfbf9}.reviewTop{display:flex;align-items:center;gap:7px;margin-bottom:5px}.reviewTitle{font-size:13px;font-weight:900;line-height:1.4}.reviewMeta{font-size:10px;color:#918a82;margin-left:auto;white-space:nowrap}.reviewDesc{font-size:12px;color:var(--muted);line-height:1.55;margin:5px 0 0}.reviewSource{font-size:10px;color:#777067;margin-top:7px}.loadingDots{display:inline-block;letter-spacing:2px}.detailError{background:#fff6f3;border:1px solid #ffd7cf;color:#9a4e41;border-radius:12px;padding:12px;font-size:12px;line-height:1.5}
 
@@ -381,7 +405,7 @@ async function loadBlogReviews(p){
    const data=await r.json().catch(()=>({ok:false,error:'응답을 읽지 못했어요.'}));
    if(!r.ok||!data.ok){
      if(data.needsSetup){
-       sent.innerHTML='<div class="sent"><b>—</b><span>긍정</span></div><div class="sent"><b>—</b><span>중립</span></div><div class="sent"><b>—</b><span>부정</span></div>';
+       sent.innerHTML='<div class="sentimentEmpty"><b>블로그 반응 준비 중</b><span>API 연결이 완료되면 긍정·중립·부정 반응을 보기 좋게 요약해드려요.</span></div>';
        summary.innerHTML='<div class="detailError">네이버 블로그 검색 API 연결이 아직 필요해요. API 키를 연결하면 후기 4개와 반응 요약이 자동으로 표시됩니다.</div>';
        reviews.innerHTML='';
        return;
@@ -389,7 +413,23 @@ async function loadBlogReviews(p){
      throw new Error(data.error||('HTTP '+r.status));
    }
    const ss=data.sentiment||{};
-   sent.innerHTML=`<div class="sent"><b>${Number(ss.positive||0)}%</b><span>긍정</span></div><div class="sent"><b>${Number(ss.neutral||0)}%</b><span>중립</span></div><div class="sent"><b>${Number(ss.negative||0)}%</b><span>부정</span></div>`;
+   const sample=Number(ss.sampleSize||0);
+   const pPos=Number(ss.positive||0), pNeu=Number(ss.neutral||0), pNeg=Number(ss.negative||0);
+   if(sample>0){
+     sent.innerHTML=`<div class="sentimentWrap">
+       <div class="sentimentHead"><strong>후기 반응 한눈에 보기</strong><span class="sentimentSample">분석 ${sample}건</span></div>
+       <div class="sentimentBar" aria-label="블로그 반응 비율">
+         <i class="barPos" style="width:${pPos}%"></i><i class="barNeu" style="width:${pNeu}%"></i><i class="barNeg" style="width:${pNeg}%"></i>
+       </div>
+       <div class="sentiment">
+         <div class="sent pos"><div class="sentTop"><span class="sentIcon">♥</span>긍정</div><b>${pPos}%</b><small>좋아요 · 추천 · 만족 등</small></div>
+         <div class="sent neu"><div class="sentTop"><span class="sentIcon">•</span>중립</div><b>${pNeu}%</b><small>정보 · 안내 · 일반 언급</small></div>
+         <div class="sent neg"><div class="sentTop"><span class="sentIcon">!</span>부정</div><b>${pNeg}%</b><small>불편 · 아쉬움 등</small></div>
+       </div>
+     </div>`;
+   }else{
+     sent.innerHTML=`<div class="sentimentEmpty"><b>아직 반응을 계산하기 어려워요</b><span>검색된 블로그 후기가 충분하지 않아서 비율을 표시하지 않았어요.</span></div>`;
+   }
    const pos=keywordHtml(data.keywords?.positive,'pos');
    const neg=keywordHtml(data.keywords?.negative,'neg');
    summary.innerHTML=`<strong>검색 후기 ${Number(data.total||0).toLocaleString()}건 중 상위 ${Number(ss.sampleSize||0)}건 요약</strong>${pos||neg?`<div class="kwRow">${pos}${neg}</div>`:''}<small>※ ${esc(ss.basis||'블로그 검색 결과의 제목·요약문 기준')} 자동 분류예요. 전체 블로그 본문을 분석한 평점은 아닙니다.</small>`;
@@ -401,7 +441,7 @@ async function loadBlogReviews(p){
    reviews.innerHTML='';
  }
 }
-window.openDetail=id=>{const p=PLACES.find(x=>x.id===id);if(!p)return;const b=badge(p);detailBody.innerHTML=`<div class="heroImg">${p.thumb?`<img referrerpolicy="no-referrer" src="${esc(p.thumb)}" onerror="this.parentNode.innerHTML='<div class=&quot;noimg&quot;>📍</div>'">`:'<div class="noimg">📍</div>'}</div><div class="detail"><div class="dCat">${esc(p.groupLabel)} · ${esc(p.category)}${b?' · '+b:''}</div><h2>${esc(p.name)}</h2><div class="dAddr">${esc(p.address)}</div>${p.memo?`<div class="memo">💡 ${esc(p.memo)}</div>`:''}<div class="detailBtns"><a class="primary" target="_blank" href="${esc(p.url)}">네이버지도</a><a target="_blank" href="${blogUrl(p.name)}">블로그 전체 검색</a></div><section class="dSection"><h3>블로그 반응</h3><div class="sentiment" id="blogSentiment"><div class="sent"><b>…</b><span>긍정</span></div><div class="sent"><b>…</b><span>중립</span></div><div class="sent"><b>…</b><span>부정</span></div></div><div class="blogSummary" id="blogSummary"><span class="loadingDots">•••</span> 블로그 반응을 불러오고 있어요.</div></section><section class="dSection"><h3>블로그 후기 4개</h3><div id="blogReviews"><div class="pending">관련도 높은 블로그 후기를 찾고 있어요…</div></div><a class="moreLink" target="_blank" href="${blogUrl(p.name)}">네이버 블로그 후기 더보기 →</a></section><section class="dSection"><h3>방문자 리뷰</h3><a class="moreLink" target="_blank" href="${esc(p.url)}">네이버 지도에서 리뷰 보기 →</a></section></div>`;drawerBack.style.display='block';document.body.style.overflow='hidden';loadBlogReviews(p)};
+window.openDetail=id=>{const p=PLACES.find(x=>x.id===id);if(!p)return;const b=badge(p);detailBody.innerHTML=`<div class="heroImg">${p.thumb?`<img referrerpolicy="no-referrer" src="${esc(p.thumb)}" onerror="this.parentNode.innerHTML='<div class=&quot;noimg&quot;>📍</div>'">`:'<div class="noimg">📍</div>'}</div><div class="detail"><div class="dCat">${esc(p.groupLabel)} · ${esc(p.category)}${b?' · '+b:''}</div><h2>${esc(p.name)}</h2><div class="dAddr">${esc(p.address)}</div>${p.memo?`<div class="memo">💡 ${esc(p.memo)}</div>`:''}<div class="detailBtns"><a class="primary" target="_blank" href="${esc(p.url)}">네이버지도</a><a target="_blank" href="${blogUrl(p.name)}">블로그 전체 검색</a></div><section class="dSection"><h3>블로그 반응</h3><div id="blogSentiment"><div class="sentimentWrap"><div class="sentimentHead"><strong>후기 반응 한눈에 보기</strong><span class="sentimentSample">불러오는 중</span></div><div class="sentimentBar"><i class="barNeu" style="width:100%"></i></div><div class="sentiment"><div class="sent neu"><div class="sentTop"><span class="sentIcon">•</span>분석 중</div><b>…</b><small>잠시만 기다려주세요</small></div><div class="sent neu"><div class="sentTop"><span class="sentIcon">•</span>분석 중</div><b>…</b><small>잠시만 기다려주세요</small></div><div class="sent neu"><div class="sentTop"><span class="sentIcon">•</span>분석 중</div><b>…</b><small>잠시만 기다려주세요</small></div></div></div></div><div class="blogSummary" id="blogSummary"><span class="loadingDots">•••</span> 블로그 반응을 불러오고 있어요.</div></section><section class="dSection"><h3>블로그 후기 4개</h3><div id="blogReviews"><div class="pending">관련도 높은 블로그 후기를 찾고 있어요…</div></div><a class="moreLink" target="_blank" href="${blogUrl(p.name)}">네이버 블로그 후기 더보기 →</a></section><section class="dSection"><h3>방문자 리뷰</h3><a class="moreLink" target="_blank" href="${esc(p.url)}">네이버 지도에서 리뷰 보기 →</a></section></div>`;drawerBack.style.display='block';document.body.style.overflow='hidden';loadBlogReviews(p)};
 closeDrawer.onclick=()=>{drawerBack.style.display='none';document.body.style.overflow=''};drawerBack.onclick=e=>{if(e.target===drawerBack)closeDrawer.click()};
 
 detailToggle.onclick=()=>{
