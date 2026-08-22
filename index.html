@@ -155,6 +155,21 @@ footer{margin-top:40px;padding:28px 0 80px;border-top:1px solid var(--line);colo
 .ageInsightText{font-size:11px;line-height:1.55;color:#655d55;font-weight:650}
 .ageChips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
 .ageChip{font-size:9px;font-weight:800;padding:5px 8px;border-radius:999px;background:#f4f0ff;color:#67558f;border:1px solid #e5dcfa}
+
+.ageInsight{margin-top:14px;padding:14px;border:1px solid #eee6dd;border-radius:15px;background:#fffaf5}
+.ageInsightHead{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:4px}
+.ageInsightHead strong{font-size:13px;font-weight:900;color:#4d463f}
+.ageInsightHead span{font-size:9px;color:#918980}
+.ageInsightText{font-size:11px;line-height:1.55;color:#655d55;font-weight:650;margin-bottom:13px}
+.ageChart{display:grid;grid-template-columns:repeat(8,minmax(42px,1fr));align-items:end;gap:7px;height:190px;padding:28px 2px 0;margin-top:4px;overflow-x:auto}
+.ageRow{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:42px;gap:5px}
+.ageBarArea{height:120px;width:100%;display:flex;align-items:flex-end;justify-content:center;position:relative}
+.ageTrack{height:100%;width:25px;border-radius:9px 9px 5px 5px;background:#eeeae5;position:relative;overflow:visible}
+.ageFill{position:absolute;left:0;right:0;bottom:0;border-radius:9px 9px 5px 5px;background:linear-gradient(180deg,#ffb767,#f08d45);min-height:0}
+.agePct{position:absolute;left:50%;transform:translateX(-50%);font-size:10px;font-weight:900;color:#df762d;white-space:nowrap}
+.ageLabel{font-size:9px;font-weight:800;color:#5f574f;text-align:center;line-height:1.2;min-height:22px;display:flex;align-items:flex-start;justify-content:center;word-break:keep-all}
+.ageCount{font-size:8px;color:#9a9188;font-weight:600;white-space:nowrap}
+.ageEmpty{padding:14px 10px;border:1px dashed #ddd5cc;border-radius:12px;text-align:center;color:#80776e;font-size:10px;line-height:1.5;background:#fcfaf7}
 </style>
 </head>
 <body>
@@ -475,16 +490,29 @@ async function loadBlogReviews(p){
      <div class="reactionGuide">※ 비슷한 표현을 실제 방문 판단에 도움이 되는 항목으로 묶었어요. ${esc(ss.basis||'블로그 검색 결과의 제목·요약문 기준 자동 분류')}이며, 전체 본문을 분석한 평점은 아닙니다.</div>`;
    const age=data.ageAnalysis||{};
    if(age.summary){
-     const useful=(Array.isArray(age.results)?age.results:[])
-       .filter(x=>Number(x.positive||0)>=2 && Number(x.positive||0)>Number(x.negative||0))
-       .sort((a,b)=>Number(b.positive||0)-Number(a.positive||0))
-       .slice(0,5);
+     const dist=Array.isArray(age.distribution)?age.distribution:[];
      summary.innerHTML+=`<div class="ageInsight">
-       <div class="ageInsightHead">👶 후기에서 보이는 추천 연령</div>
+       <div class="ageInsightHead"><strong>👶 후기에서 많이 언급된 아이 연령대</strong><span>추천 맥락 기준</span></div>
        <div class="ageInsightText">${esc(age.summary)}</div>
-       ${useful.length?`<div class="ageChips">${useful.map(x=>`<span class="ageChip">${esc(x.label)} · 긍정 ${Number(x.positive||0)}건</span>`).join('')}</div>`:''}
+       ${age.enoughData && dist.length
+         ? `<div class="ageChart">${dist.map(x=>{
+             const pct=Math.max(0,Math.min(100,Number(x.percentage||0)));
+             return `<div class="ageRow">
+               <div class="ageBarArea">
+                 <div class="ageTrack">
+                   <div class="ageFill" style="height:${pct}%"></div>
+                   <div class="agePct" style="bottom:calc(${pct}% + 5px)">${pct}%</div>
+                 </div>
+               </div>
+               <div class="ageLabel">${esc(x.label)}</div>
+               <div class="ageCount">${Number(x.positive||0)}건</div>
+             </div>`;
+           }).join('')}</div>`
+         : `<div class="ageEmpty">아직 연령대별 비중을 계산하기에는 관련 후기가 부족해요.</div>`}
+       <div class="reactionGuide">※ 실제 이용객 연령 통계가 아니라, 블로그 검색 결과에서 긍정적으로 언급된 아이 연령 표현의 비중이에요.</div>
      </div>`;
    }
+
    const arr=Array.isArray(data.reviews)?data.reviews:[];
    reviews.innerHTML=arr.length?arr.map(x=>`<a class="review" target="_blank" rel="noopener" href="${esc(x.link)}"><div class="reviewTop"><div class="reviewTitle">${esc(x.title)}</div><div class="reviewMeta">${esc(fmtBlogDate(x.postDate))}</div></div><div class="reviewDesc">${esc(x.description)}</div><div class="reviewSource">${esc(x.bloggerName||'네이버 블로그')} ↗</div></a>`).join(''):'<div class="pending">검색된 블로그 후기가 없어요.</div>';
  }catch(e){
@@ -493,7 +521,7 @@ async function loadBlogReviews(p){
    reviews.innerHTML='';
  }
 }
-window.openDetail=id=>{const p=PLACES.find(x=>x.id===id);if(!p)return;const b=badge(p);detailBody.innerHTML=`<div class="heroImg">${p.thumb?`<img referrerpolicy="no-referrer" src="${esc(p.thumb)}" onerror="this.parentNode.innerHTML='<div class=&quot;noimg&quot;>📍</div>'">`:'<div class="noimg">📍</div>'}</div><div class="detail"><div class="dCat">${esc(p.groupLabel)} · ${esc(p.category)}${b?' · '+b:''}</div><h2>${esc(p.name)}</h2><div class="dAddr">${esc(p.address)}</div>${p.memo?`<div class="memo">💡 ${esc(p.memo)}</div>`:''}<div class="detailBtns"><a class="primary" target="_blank" href="${esc(p.url)}">네이버지도</a><a target="_blank" href="${blogUrl(p.name)}">블로그 전체 검색</a></div><section class="dSection"><h3>블로그 반응</h3><div id="blogSentiment"><div class="sentimentWrap"><div class="sentimentHead"><strong>후기 반응 한눈에 보기</strong><span class="sentimentSample">불러오는 중</span></div><div class="sentimentBar"><i class="barNeu" style="width:100%"></i></div><div class="sentiment"><div class="sent neu"><div class="sentTop"><span class="sentIcon">•</span>분석 중</div><b>…</b><small>잠시만 기다려주세요</small></div><div class="sent neu"><div class="sentTop"><span class="sentIcon">•</span>분석 중</div><b>…</b><small>잠시만 기다려주세요</small></div><div class="sent neu"><div class="sentTop"><span class="sentIcon">•</span>분석 중</div><b>…</b><small>잠시만 기다려주세요</small></div></div></div></div><div class="blogSummary" id="blogSummary"><span class="loadingDots">•••</span> 블로그 반응을 불러오고 있어요.</div></section><section class="dSection"><h3>블로그 후기 4개</h3><div id="blogReviews"><div class="pending">관련도 높은 블로그 후기를 찾고 있어요…</div></div><a class="moreLink" target="_blank" href="${blogUrl(p.name)}">네이버 블로그 후기 더보기 →</a></section><section class="dSection"><h3>방문자 리뷰</h3><a class="moreLink" target="_blank" href="${esc(p.url)}">네이버 지도에서 리뷰 보기 →</a></section></div>`;drawerBack.style.display='block';document.body.style.overflow='hidden';loadBlogReviews(p)};
+window.openDetail=id=>{const p=PLACES.find(x=>x.id===id);if(!p)return;const b=badge(p);detailBody.innerHTML=`<div class="heroImg">${p.thumb?`<img referrerpolicy="no-referrer" src="${esc(p.thumb)}" onerror="this.parentNode.innerHTML='<div class=&quot;noimg&quot;>📍</div>'">`:'<div class="noimg">📍</div>'}</div><div class="detail"><div class="dCat">${esc(p.groupLabel)} · ${esc(p.category)}${b?' · '+b:''}</div><h2>${esc(p.name)}</h2><div class="dAddr">${esc(p.address)}</div>${p.memo?`<div class="memo">💡 ${esc(p.memo)}</div>`:''}<div class="detailBtns"><a class="primary" target="_blank" href="${esc(p.url)}">네이버지도</a><a target="_blank" href="${blogUrl(p.name)}">블로그 전체 검색</a></div><section class="dSection"><h3>블로그 반응</h3><div id="blogSentiment"><div class="sentimentWrap"><div class="sentimentHead"><strong>후기 반응 한눈에 보기</strong><span class="sentimentSample">불러오는 중</span></div><div class="sentimentBar"><i class="barNeu" style="width:100%"></i></div><div class="sentiment"><div class="sent neu"><div class="sentTop"><span class="sentIcon">•</span>분석 중</div><b>…</b><small>잠시만 기다려주세요</small></div><div class="sent neu"><div class="sentTop"><span class="sentIcon">•</span>분석 중</div><b>…</b><small>잠시만 기다려주세요</small></div><div class="sent neu"><div class="sentTop"><span class="sentIcon">•</span>분석 중</div><b>…</b><small>잠시만 기다려주세요</small></div></div></div></div><div class="blogSummary" id="blogSummary"><span class="loadingDots">•••</span> 블로그 반응을 불러오고 있어요.</div></section><section class="dSection"><h3>블로그 후기</h3><div id="blogReviews"><div class="pending">관련도 높은 블로그 후기를 찾고 있어요…</div></div><a class="moreLink" target="_blank" href="${blogUrl(p.name)}">네이버 블로그 후기 더보기 →</a></section><section class="dSection"><h3>방문자 리뷰</h3><a class="moreLink" target="_blank" href="${esc(p.url)}">네이버 지도에서 리뷰 보기 →</a></section></div>`;drawerBack.style.display='block';document.body.style.overflow='hidden';loadBlogReviews(p)};
 closeDrawer.onclick=()=>{drawerBack.style.display='none';document.body.style.overflow=''};drawerBack.onclick=e=>{if(e.target===drawerBack)closeDrawer.click()};
 
 detailToggle.onclick=()=>{
