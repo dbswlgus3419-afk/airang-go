@@ -48,6 +48,10 @@ button,input,select{font:inherit}button{cursor:pointer}a{text-decoration:none;co
 .detailBtns{display:flex;gap:8px;margin-top:15px}.detailBtns a{flex:1;text-align:center;border:1px solid var(--line);border-radius:11px;padding:11px;font-weight:900;font-size:13px}.detailBtns a.primary{background:#03c75a;color:#fff;border-color:#03c75a}
 .dSection{border-top:1px solid var(--line);margin-top:22px;padding-top:20px}.dSection h3{margin:0 0 11px}.sentiment{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.sent{background:#f7f5f2;border-radius:12px;padding:14px;text-align:center}.sent b{display:block;font-size:20px}.sent span{font-size:11px;color:var(--muted)}
 .pending{background:#faf8f5;border-radius:12px;padding:13px;color:#766f67;font-size:12px;line-height:1.55}.review{border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:8px}.review p{font-size:12px;color:var(--muted);margin:5px 0 0}.moreLink{display:block;text-align:center;border:1px solid var(--line);border-radius:11px;padding:11px;margin-top:10px;font-weight:900;font-size:13px}
+.blogSummary{margin-top:10px;padding:12px;border-radius:12px;background:#fbfaf7;border:1px solid var(--line)}
+.blogSummary small{display:block;color:var(--muted);line-height:1.45;margin-top:6px}.kwRow{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.kw{font-size:10px;padding:5px 8px;border-radius:999px;background:#f2f0ec;color:#665f57}.kw.pos{background:#edf8f0;color:#267143}.kw.neg{background:#fff0ed;color:#a94a3a}
+.review{display:block;color:inherit}.review:hover{border-color:#bcb4aa;background:#fcfbf9}.reviewTop{display:flex;align-items:center;gap:7px;margin-bottom:5px}.reviewTitle{font-size:13px;font-weight:900;line-height:1.4}.reviewMeta{font-size:10px;color:#918a82;margin-left:auto;white-space:nowrap}.reviewDesc{font-size:12px;color:var(--muted);line-height:1.55;margin:5px 0 0}.reviewSource{font-size:10px;color:#777067;margin-top:7px}.loadingDots{display:inline-block;letter-spacing:2px}.detailError{background:#fff6f3;border:1px solid #ffd7cf;color:#9a4e41;border-radius:12px;padding:12px;font-size:12px;line-height:1.5}
+
 footer{margin-top:40px;padding:28px 0 80px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
 @media(max-width:850px){.nav{display:none}.filters{grid-template-columns:1fr 1fr}.list{grid-template-columns:1fr}}
 @media(max-width:600px){
@@ -364,7 +368,40 @@ bottomRecommend.onclick=goRecommend;
 
 let map,marks=[];function renderMap(){if(!window.L)return;if(!map){map=L.map('map').setView([36.5,127.8],7);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map)}marks.forEach(m=>map.removeLayer(m));marks=[];const d=cur.slice(0,350),bounds=[];d.forEach(p=>{const m=L.marker([+p.lat,+p.lng]).addTo(map).bindPopup(`<b>${esc(p.name)}</b><br><button onclick="openDetail('${p.id}')">상세보기</button>`);marks.push(m);bounds.push([+p.lat,+p.lng])});if(bounds.length)map.fitBounds(bounds,{padding:[20,20],maxZoom:13});setTimeout(()=>map.invalidateSize(),60)}
 function blogUrl(n){return 'https://search.naver.com/search.naver?where=blog&query='+encodeURIComponent(n+' 후기')}
-window.openDetail=id=>{const p=PLACES.find(x=>x.id===id);if(!p)return;const b=badge(p);detailBody.innerHTML=`<div class="heroImg">${p.thumb?`<img referrerpolicy="no-referrer" src="${esc(p.thumb)}">`:'<div class="noimg">📍</div>'}</div><div class="detail"><div class="dCat">${esc(p.groupLabel)} · ${esc(p.category)}${b?' · '+b:''}</div><h2>${esc(p.name)}</h2><div class="dAddr">${esc(p.address)}</div>${p.memo?`<div class="memo">💡 ${esc(p.memo)}</div>`:''}<div class="detailBtns"><a class="primary" target="_blank" href="${esc(p.url)}">네이버지도</a><a target="_blank" href="${blogUrl(p.name)}">블로그 후기 검색</a></div><section class="dSection"><h3>블로그 반응</h3><div class="sentiment"><div class="sent"><b>—</b><span>긍정</span></div><div class="sent"><b>—</b><span>중립</span></div><div class="sent"><b>—</b><span>부정</span></div></div><div class="pending" style="margin-top:10px">다음 단계에서 실제 블로그 후기 데이터를 연결하면 반응 비율과 주요 키워드를 표시할 수 있어요.</div></section><section class="dSection"><h3>블로그 후기</h3><div class="review"><strong>후기 데이터 연동 준비 중</strong><p>관련도 높은 후기 4개를 카드로 보여줄 영역입니다.</p></div><a class="moreLink" target="_blank" href="${blogUrl(p.name)}">네이버 블로그 후기 더보기 →</a></section><section class="dSection"><h3>리뷰</h3><a class="moreLink" target="_blank" href="${esc(p.url)}">네이버 지도에서 리뷰 보기 →</a></section></div>`;drawerBack.style.display='block';document.body.style.overflow='hidden'};
+function fmtBlogDate(v){if(!/^\d{8}$/.test(v||''))return '';return `${v.slice(0,4)}.${v.slice(4,6)}.${v.slice(6,8)}`}
+function keywordHtml(list,cls){return (Array.isArray(list)?list:[]).map(x=>`<span class="kw ${cls}">${esc(x.word)}${x.count>1?' '+x.count:''}</span>`).join('')}
+async function loadBlogReviews(p){
+ const sent=document.getElementById('blogSentiment');
+ const summary=document.getElementById('blogSummary');
+ const reviews=document.getElementById('blogReviews');
+ if(!sent||!summary||!reviews)return;
+ try{
+   const params=new URLSearchParams({place:p.name,address:p.address||''});
+   const r=await fetch('/api/blog-reviews?'+params.toString(),{cache:'no-store'});
+   const data=await r.json().catch(()=>({ok:false,error:'응답을 읽지 못했어요.'}));
+   if(!r.ok||!data.ok){
+     if(data.needsSetup){
+       sent.innerHTML='<div class="sent"><b>—</b><span>긍정</span></div><div class="sent"><b>—</b><span>중립</span></div><div class="sent"><b>—</b><span>부정</span></div>';
+       summary.innerHTML='<div class="detailError">네이버 블로그 검색 API 연결이 아직 필요해요. API 키를 연결하면 후기 4개와 반응 요약이 자동으로 표시됩니다.</div>';
+       reviews.innerHTML='';
+       return;
+     }
+     throw new Error(data.error||('HTTP '+r.status));
+   }
+   const ss=data.sentiment||{};
+   sent.innerHTML=`<div class="sent"><b>${Number(ss.positive||0)}%</b><span>긍정</span></div><div class="sent"><b>${Number(ss.neutral||0)}%</b><span>중립</span></div><div class="sent"><b>${Number(ss.negative||0)}%</b><span>부정</span></div>`;
+   const pos=keywordHtml(data.keywords?.positive,'pos');
+   const neg=keywordHtml(data.keywords?.negative,'neg');
+   summary.innerHTML=`<strong>검색 후기 ${Number(data.total||0).toLocaleString()}건 중 상위 ${Number(ss.sampleSize||0)}건 요약</strong>${pos||neg?`<div class="kwRow">${pos}${neg}</div>`:''}<small>※ ${esc(ss.basis||'블로그 검색 결과의 제목·요약문 기준')} 자동 분류예요. 전체 블로그 본문을 분석한 평점은 아닙니다.</small>`;
+   const arr=Array.isArray(data.reviews)?data.reviews:[];
+   reviews.innerHTML=arr.length?arr.map(x=>`<a class="review" target="_blank" rel="noopener" href="${esc(x.link)}"><div class="reviewTop"><div class="reviewTitle">${esc(x.title)}</div><div class="reviewMeta">${esc(fmtBlogDate(x.postDate))}</div></div><div class="reviewDesc">${esc(x.description)}</div><div class="reviewSource">${esc(x.bloggerName||'네이버 블로그')} ↗</div></a>`).join(''):'<div class="pending">검색된 블로그 후기가 없어요.</div>';
+ }catch(e){
+   console.error('blog review load failed',e);
+   summary.innerHTML=`<div class="detailError">블로그 후기를 불러오지 못했어요.<br>${esc(e.message||'잠시 후 다시 시도해주세요.')}</div>`;
+   reviews.innerHTML='';
+ }
+}
+window.openDetail=id=>{const p=PLACES.find(x=>x.id===id);if(!p)return;const b=badge(p);detailBody.innerHTML=`<div class="heroImg">${p.thumb?`<img referrerpolicy="no-referrer" src="${esc(p.thumb)}" onerror="this.parentNode.innerHTML='<div class=&quot;noimg&quot;>📍</div>'">`:'<div class="noimg">📍</div>'}</div><div class="detail"><div class="dCat">${esc(p.groupLabel)} · ${esc(p.category)}${b?' · '+b:''}</div><h2>${esc(p.name)}</h2><div class="dAddr">${esc(p.address)}</div>${p.memo?`<div class="memo">💡 ${esc(p.memo)}</div>`:''}<div class="detailBtns"><a class="primary" target="_blank" href="${esc(p.url)}">네이버지도</a><a target="_blank" href="${blogUrl(p.name)}">블로그 전체 검색</a></div><section class="dSection"><h3>블로그 반응</h3><div class="sentiment" id="blogSentiment"><div class="sent"><b>…</b><span>긍정</span></div><div class="sent"><b>…</b><span>중립</span></div><div class="sent"><b>…</b><span>부정</span></div></div><div class="blogSummary" id="blogSummary"><span class="loadingDots">•••</span> 블로그 반응을 불러오고 있어요.</div></section><section class="dSection"><h3>블로그 후기 4개</h3><div id="blogReviews"><div class="pending">관련도 높은 블로그 후기를 찾고 있어요…</div></div><a class="moreLink" target="_blank" href="${blogUrl(p.name)}">네이버 블로그 후기 더보기 →</a></section><section class="dSection"><h3>방문자 리뷰</h3><a class="moreLink" target="_blank" href="${esc(p.url)}">네이버 지도에서 리뷰 보기 →</a></section></div>`;drawerBack.style.display='block';document.body.style.overflow='hidden';loadBlogReviews(p)};
 closeDrawer.onclick=()=>{drawerBack.style.display='none';document.body.style.overflow=''};drawerBack.onclick=e=>{if(e.target===drawerBack)closeDrawer.click()};
 
 detailToggle.onclick=()=>{
