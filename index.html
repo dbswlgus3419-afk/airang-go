@@ -67,6 +67,18 @@ button,input,select{font:inherit}button{cursor:pointer}a{text-decoration:none;co
 .sent b{display:block;font-size:22px;letter-spacing:-.7px;margin-top:7px;line-height:1}
 .pos b{color:#15944d}.neu b{color:#4e617c}.neg b{color:#d85647}
 .sent small{display:block;margin-top:5px;font-size:9px;color:#8a837b}
+.sentSummary{margin-top:9px;padding-top:9px;border-top:1px solid rgba(0,0,0,.055);font-size:10px;line-height:1.48;color:#625b53;min-height:38px}
+.reactionSummaryHead{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.reactionSummaryHead strong{font-size:13px}
+.reactionSummaryHead span{font-size:9px;color:#8c857e}
+.reactionKeywords{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.reactionKw{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:6px 9px;font-size:10px;font-weight:780;border:1px solid}
+.reactionKw b{font-size:9px;opacity:.72}
+.reactionKw.pos{background:#edf9f1;border-color:#d1edd9;color:#237044}
+.reactionKw.neu{background:#f2f5f9;border-color:#dde3eb;color:#53627a}
+.reactionKw.neg{background:#fff1ee;border-color:#f6d7d0;color:#a94b3d}
+.reactionGuide{margin-top:10px;font-size:9px;color:#817970;line-height:1.5}
+
 .sentimentEmpty{padding:18px 14px;text-align:center;border:1px dashed #d8d2ca;border-radius:14px;background:#faf9f7;color:#7b746c}
 .sentimentEmpty b{display:block;color:#403a34;font-size:14px;margin-bottom:4px}
 .sentimentEmpty span{font-size:11px;line-height:1.55}
@@ -413,26 +425,43 @@ async function loadBlogReviews(p){
      throw new Error(data.error||('HTTP '+r.status));
    }
    const ss=data.sentiment||{};
+   const detail=data.sentimentDetails||{};
    const sample=Number(ss.sampleSize||0);
+   const enough=ss.enoughData!==false && sample>=Number(ss.minimumSampleSize||5);
    const pPos=Number(ss.positive||0), pNeu=Number(ss.neutral||0), pNeg=Number(ss.negative||0);
-   if(sample>0){
+
+   if(enough){
      sent.innerHTML=`<div class="sentimentWrap">
        <div class="sentimentHead"><strong>후기 반응 한눈에 보기</strong><span class="sentimentSample">분석 ${sample}건</span></div>
        <div class="sentimentBar" aria-label="블로그 반응 비율">
          <i class="barPos" style="width:${pPos}%"></i><i class="barNeu" style="width:${pNeu}%"></i><i class="barNeg" style="width:${pNeg}%"></i>
        </div>
        <div class="sentiment">
-         <div class="sent pos"><div class="sentTop"><span class="sentIcon">♥</span>긍정</div><b>${pPos}%</b><small>좋아요 · 추천 · 만족 등</small></div>
-         <div class="sent neu"><div class="sentTop"><span class="sentIcon">•</span>중립</div><b>${pNeu}%</b><small>정보 · 안내 · 일반 언급</small></div>
-         <div class="sent neg"><div class="sentTop"><span class="sentIcon">!</span>부정</div><b>${pNeg}%</b><small>불편 · 아쉬움 등</small></div>
+         <div class="sent pos">
+           <div class="sentTop"><span class="sentIcon">♥</span>긍정 · ${Number(detail.positive?.count||0)}건</div>
+           <b>${pPos}%</b>
+           <div class="sentSummary">${esc(detail.positive?.summary||'긍정 반응을 요약하고 있어요.')}</div>
+         </div>
+         <div class="sent neu">
+           <div class="sentTop"><span class="sentIcon">•</span>중립 · ${Number(detail.neutral?.count||0)}건</div>
+           <b>${pNeu}%</b>
+           <div class="sentSummary">${esc(detail.neutral?.summary||'중립 반응을 요약하고 있어요.')}</div>
+         </div>
+         <div class="sent neg">
+           <div class="sentTop"><span class="sentIcon">!</span>부정 · ${Number(detail.negative?.count||0)}건</div>
+           <b>${pNeg}%</b>
+           <div class="sentSummary">${esc(detail.negative?.summary||'부정 반응을 요약하고 있어요.')}</div>
+         </div>
        </div>
      </div>`;
    }else{
-     sent.innerHTML=`<div class="sentimentEmpty"><b>아직 반응을 계산하기 어려워요</b><span>검색된 블로그 후기가 충분하지 않아서 비율을 표시하지 않았어요.</span></div>`;
+     sent.innerHTML=`<div class="sentimentEmpty"><b>아직 반응을 계산하기 어려워요</b><span>분석 가능한 블로그 후기가 ${sample}건이라, 최소 ${Number(ss.minimumSampleSize||5)}건 이상 모이면 긍정·중립·부정 비율과 요약을 보여드릴게요.</span></div>`;
    }
-   const pos=keywordHtml(data.keywords?.positive,'pos');
-   const neg=keywordHtml(data.keywords?.negative,'neg');
-   summary.innerHTML=`<strong>검색 후기 ${Number(data.total||0).toLocaleString()}건 중 상위 ${Number(ss.sampleSize||0)}건 요약</strong>${pos||neg?`<div class="kwRow">${pos}${neg}</div>`:''}<small>※ ${esc(ss.basis||'블로그 검색 결과의 제목·요약문 기준')} 자동 분류예요. 전체 블로그 본문을 분석한 평점은 아닙니다.</small>`;
+
+   const kws=Array.isArray(data.reactionKeywords)?data.reactionKeywords:[];
+   summary.innerHTML=`<div class="reactionSummaryHead"><strong>주요 반응 키워드</strong><span>상위 ${sample}건 기준</span></div>
+     ${kws.length?`<div class="reactionKeywords">${kws.map(x=>`<span class="reactionKw ${x.tone==='positive'?'pos':x.tone==='negative'?'neg':'neu'}">${esc(x.label)} <b>${Number(x.count||0)}건</b></span>`).join('')}</div>`:'<div class="reactionGuide">반복적으로 나타나는 주요 반응 키워드가 아직 없어요.</div>'}
+     <div class="reactionGuide">※ 단어 하나를 그대로 보여주는 대신 비슷한 표현을 의미별로 묶었어요. ${esc(ss.basis||'블로그 검색 결과의 제목·요약문 기준 자동 분류')}이며, 전체 본문을 분석한 평점은 아닙니다.</div>`;
    const arr=Array.isArray(data.reviews)?data.reviews:[];
    reviews.innerHTML=arr.length?arr.map(x=>`<a class="review" target="_blank" rel="noopener" href="${esc(x.link)}"><div class="reviewTop"><div class="reviewTitle">${esc(x.title)}</div><div class="reviewMeta">${esc(fmtBlogDate(x.postDate))}</div></div><div class="reviewDesc">${esc(x.description)}</div><div class="reviewSource">${esc(x.bloggerName||'네이버 블로그')} ↗</div></a>`).join(''):'<div class="pending">검색된 블로그 후기가 없어요.</div>';
  }catch(e){
