@@ -67,7 +67,7 @@ button,input,select{font:inherit}button{cursor:pointer}a{text-decoration:none;co
 .sent b{display:block;font-size:22px;letter-spacing:-.7px;margin-top:7px;line-height:1}
 .pos b{color:#15944d}.neu b{color:#4e617c}.neg b{color:#d85647}
 .sent small{display:block;margin-top:5px;font-size:9px;color:#8a837b}
-.sentSummary{margin-top:9px;padding-top:9px;border-top:1px solid rgba(0,0,0,.055);font-size:10px;line-height:1.48;color:#625b53;min-height:38px}
+.sentSummary{margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,0,0,.06);font-size:12px;line-height:1.55;color:#4f4841;min-height:54px;font-weight:650}.sentSummaryLine{display:flex;gap:6px;align-items:flex-start;margin-top:4px}.sentSummaryLine:first-child{margin-top:0}.sentSummaryLine:before{content:"•";font-weight:900;opacity:.5;flex:0 0 auto}
 .reactionSummaryHead{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
 .reactionSummaryHead strong{font-size:13px}
 .reactionSummaryHead span{font-size:9px;color:#8c857e}
@@ -92,7 +92,11 @@ footer{margin-top:40px;padding:28px 0 80px;border-top:1px solid var(--line);colo
 @media(max-width:850px){.nav{display:none}.filters{grid-template-columns:1fr 1fr}.list{grid-template-columns:1fr}}
 @media(max-width:600px){
  .wrap{padding:0 14px}.top{height:58px}.compactHead{padding:16px 0 8px}.compactTitleRow h1{font-size:22px}
- .searchRow{grid-template-columns:1fr}.loc{height:43px}.filters{grid-template-columns:1fr 1fr}.sectionHead{margin-top:20px}
+ .searchRow{grid-template-columns:1fr}.loc{height:43px}
+ .filters{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+ .filters select{width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+ .filters select:nth-child(3){grid-column:1 / -1}
+ .sectionHead{margin-top:20px}
  .place{grid-template-columns:116px 1fr;min-height:126px}.info{padding:11px}.name{font-size:15px}.desc{font-size:11px}.actions{display:none}
  .bottomNav{display:flex;position:fixed;bottom:0;left:0;right:0;height:62px;background:#fff;border-top:1px solid var(--line);z-index:35;justify-content:center;gap:70px;align-items:center}.bottomNav button{border:0;background:transparent;font-size:11px;font-weight:800;color:#766f67}.bottomNav button b{display:block;font-size:20px;margin-bottom:2px}
 }
@@ -427,7 +431,9 @@ async function loadBlogReviews(p){
    const ss=data.sentiment||{};
    const detail=data.sentimentDetails||{};
    const sample=Number(ss.sampleSize||0);
-   const enough=ss.enoughData!==false && sample>=Number(ss.minimumSampleSize||5);
+   const minSample=Number(ss.minimumSampleSize||5);
+   const hasDetailCounts=detail?.positive?.count!==undefined && detail?.neutral?.count!==undefined && detail?.negative?.count!==undefined;
+   const enough=ss.enoughData!==false && sample>=minSample && hasDetailCounts;
    const pPos=Number(ss.positive||0), pNeu=Number(ss.neutral||0), pNeg=Number(ss.negative||0);
 
    if(enough){
@@ -440,28 +446,31 @@ async function loadBlogReviews(p){
          <div class="sent pos">
            <div class="sentTop"><span class="sentIcon">♥</span>긍정 · ${Number(detail.positive?.count||0)}건</div>
            <b>${pPos}%</b>
-           <div class="sentSummary">${esc(detail.positive?.summary||'긍정 반응을 요약하고 있어요.')}</div>
+           <div class="sentSummary">${(Array.isArray(detail.positive?.lines)?detail.positive.lines:['대표 긍정 반응을 찾고 있어요.']).map(x=>`<div class="sentSummaryLine">${esc(x)}</div>`).join('')}</div>
          </div>
          <div class="sent neu">
            <div class="sentTop"><span class="sentIcon">•</span>중립 · ${Number(detail.neutral?.count||0)}건</div>
            <b>${pNeu}%</b>
-           <div class="sentSummary">${esc(detail.neutral?.summary||'중립 반응을 요약하고 있어요.')}</div>
+           <div class="sentSummary">${(Array.isArray(detail.neutral?.lines)?detail.neutral.lines:['대표 혼합 반응을 찾고 있어요.']).map(x=>`<div class="sentSummaryLine">${esc(x)}</div>`).join('')}</div>
          </div>
          <div class="sent neg">
            <div class="sentTop"><span class="sentIcon">!</span>부정 · ${Number(detail.negative?.count||0)}건</div>
            <b>${pNeg}%</b>
-           <div class="sentSummary">${esc(detail.negative?.summary||'부정 반응을 요약하고 있어요.')}</div>
+           <div class="sentSummary">${(Array.isArray(detail.negative?.lines)?detail.negative.lines:['대표 부정 반응을 찾고 있어요.']).map(x=>`<div class="sentSummaryLine">${esc(x)}</div>`).join('')}</div>
          </div>
        </div>
      </div>`;
    }else{
-     sent.innerHTML=`<div class="sentimentEmpty"><b>아직 반응을 계산하기 어려워요</b><span>분석 가능한 블로그 후기가 ${sample}건이라, 최소 ${Number(ss.minimumSampleSize||5)}건 이상 모이면 긍정·중립·부정 비율과 요약을 보여드릴게요.</span></div>`;
+     const reason=!hasDetailCounts && sample>=minSample
+       ? '새 분석 데이터가 아직 반영되지 않았어요. 잠시 후 다시 확인해주세요.'
+       : `분석 가능한 블로그 후기가 ${sample}건이라, 최소 ${minSample}건 이상 모이면 긍정·중립·부정 비율과 요약을 보여드릴게요.`;
+     sent.innerHTML=`<div class="sentimentEmpty"><b>아직 반응을 계산하기 어려워요</b><span>${reason}</span></div>`;
    }
 
    const kws=Array.isArray(data.reactionKeywords)?data.reactionKeywords:[];
-   summary.innerHTML=`<div class="reactionSummaryHead"><strong>주요 반응 키워드</strong><span>상위 ${sample}건 기준</span></div>
-     ${kws.length?`<div class="reactionKeywords">${kws.map(x=>`<span class="reactionKw ${x.tone==='positive'?'pos':x.tone==='negative'?'neg':'neu'}">${esc(x.label)} <b>${Number(x.count||0)}건</b></span>`).join('')}</div>`:'<div class="reactionGuide">반복적으로 나타나는 주요 반응 키워드가 아직 없어요.</div>'}
-     <div class="reactionGuide">※ 단어 하나를 그대로 보여주는 대신 비슷한 표현을 의미별로 묶었어요. ${esc(ss.basis||'블로그 검색 결과의 제목·요약문 기준 자동 분류')}이며, 전체 본문을 분석한 평점은 아닙니다.</div>`;
+   summary.innerHTML=`<div class="reactionSummaryHead"><strong>많이 언급된 방문 포인트</strong><span>분석 ${sample}건 기준</span></div>
+     ${kws.length?`<div class="reactionKeywords">${kws.map(x=>`<span class="reactionKw ${x.tone==='positive'?'pos':x.tone==='negative'?'neg':'neu'}">${esc(x.label)} <b>${Number(x.count||0)}건</b></span>`).join('')}</div>`:'<div class="reactionGuide">반복적으로 나타나는 많이 언급된 방문 포인트가 아직 없어요.</div>'}
+     <div class="reactionGuide">※ 비슷한 표현을 실제 방문 판단에 도움이 되는 항목으로 묶었어요. ${esc(ss.basis||'블로그 검색 결과의 제목·요약문 기준 자동 분류')}이며, 전체 본문을 분석한 평점은 아닙니다.</div>`;
    const arr=Array.isArray(data.reviews)?data.reviews:[];
    reviews.innerHTML=arr.length?arr.map(x=>`<a class="review" target="_blank" rel="noopener" href="${esc(x.link)}"><div class="reviewTop"><div class="reviewTitle">${esc(x.title)}</div><div class="reviewMeta">${esc(fmtBlogDate(x.postDate))}</div></div><div class="reviewDesc">${esc(x.description)}</div><div class="reviewSource">${esc(x.bloggerName||'네이버 블로그')} ↗</div></a>`).join(''):'<div class="pending">검색된 블로그 후기가 없어요.</div>';
  }catch(e){
