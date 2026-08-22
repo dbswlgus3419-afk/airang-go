@@ -150,69 +150,123 @@ export default {
 
         const items = Array.isArray(data?.items) ? data.items : [];
 
-        const positiveWords = [
-          "좋", "추천", "만족", "재방문", "깨끗", "친절", "재밌", "재미",
-          "즐거", "훌륭", "편하", "넓", "예쁘", "알차", "유익", "최고",
-          "아이랑 좋", "아이와 좋", "가볼만", "만족도"
+        // 사람이 읽기 쉬운 "반응 주제" 사전
+        const topicDefs = [
+          { key:"recommend", label:"추천·만족", tone:"positive", words:["추천","만족","재방문","가볼만","최고","좋았","좋아요","좋은"] },
+          { key:"kids", label:"아이 반응 좋음", tone:"positive", words:["아이들이 좋아","아이가 좋아","아이랑 좋","아이와 좋","재밌","재미","즐거"] },
+          { key:"facility", label:"시설·공간 만족", tone:"positive", words:["깨끗","쾌적","넓","예쁘","시설 좋","공간 좋"] },
+          { key:"program", label:"체험·프로그램 만족", tone:"positive", words:["알차","유익","체험 좋","프로그램 좋","볼거리","놀거리"] },
+          { key:"service", label:"친절·서비스 만족", tone:"positive", words:["친절","서비스 좋","응대 좋"] },
+
+          { key:"wait", label:"대기·혼잡", tone:"negative", words:["대기","웨이팅","혼잡","복잡","사람 많","붐비"] },
+          { key:"price", label:"가격 부담", tone:"negative", words:["비싸","비쌈","가격 부담","비싼"] },
+          { key:"parking", label:"주차·접근 불편", tone:"negative", words:["주차 힘","주차 어렵","주차 불편","접근 불편"] },
+          { key:"space", label:"공간·시설 아쉬움", tone:"negative", words:["좁","노후","관리 안","시설 아쉽"] },
+          { key:"serviceBad", label:"서비스 아쉬움", tone:"negative", words:["불친절","응대 아쉽","서비스 아쉽"] },
+          { key:"environment", label:"환경 불편", tone:"negative", words:["냄새","시끄","덥","춥"] },
+
+          { key:"info", label:"운영·이용 정보", tone:"neutral", words:["운영시간","이용시간","예약","요금","입장료","휴무","주차장","위치"] },
+          { key:"intro", label:"장소·시설 소개", tone:"neutral", words:["소개","정보","시설","프로그램","수업","교육","체험"] }
         ];
 
-        const negativeWords = [
-          "아쉽", "불편", "비싸", "비쌈", "대기", "혼잡", "복잡", "좁",
-          "별로", "실망", "불친절", "주차 힘", "주차 어렵", "웨이팅",
-          "냄새", "시끄", "덥", "춥", "관리 안", "재방문 안"
-        ];
+        function analyseItem(item){
+          const text = (stripHtml(item.title) + " " + stripHtml(item.description)).toLowerCase();
+          const matched = [];
+          let p = 0, n = 0;
 
-        const posCounts = new Map();
-        const negCounts = new Map();
-
-        let positive = 0;
-        let negative = 0;
-        let neutral = 0;
-
-        for (const item of items) {
-          const text =
-            (stripHtml(item.title) + " " + stripHtml(item.description))
-              .toLowerCase();
-
-          let pScore = 0;
-          let nScore = 0;
-
-          for (const word of positiveWords) {
-            const w = word.toLowerCase();
-            if (text.includes(w)) {
-              pScore += 1;
-              posCounts.set(word, (posCounts.get(word) || 0) + 1);
+          for (const topic of topicDefs){
+            let hits = 0;
+            for (const raw of topic.words){
+              const w = raw.toLowerCase();
+              if (text.includes(w)) hits += 1;
+            }
+            if (hits){
+              matched.push({ key:topic.key, label:topic.label, tone:topic.tone, hits });
+              if (topic.tone === "positive") p += hits;
+              if (topic.tone === "negative") n += hits;
             }
           }
 
-          for (const word of negativeWords) {
-            const w = word.toLowerCase();
-            if (text.includes(w)) {
-              nScore += 1;
-              negCounts.set(word, (negCounts.get(word) || 0) + 1);
-            }
-          }
+          let tone = "neutral";
+          if (p > n) tone = "positive";
+          else if (n > p) tone = "negative";
 
-          if (pScore > nScore) positive += 1;
-          else if (nScore > pScore) negative += 1;
-          else neutral += 1;
+          return { item, text, tone, matched };
         }
 
-        const sampleSize = items.length || 0;
+        const analysed = items.map(analyseItem);
+        const groups = {
+          positive: analysed.filter(x => x.tone === "positive"),
+          neutral: analysed.filter(x => x.tone === "neutral"),
+          negative: analysed.filter(x => x.tone === "negative")
+        };
+
+        const sampleSize = analysed.length;
+        const enoughData = sampleSize >= 5;
+
         const toPercent = (n) =>
           sampleSize ? Math.round((n / sampleSize) * 100) : 0;
 
-        const positivePct = toPercent(positive);
-        const negativePct = toPercent(negative);
-        const neutralPct = sampleSize
+        const positivePct = enoughData ? toPercent(groups.positive.length) : 0;
+        const negativePct = enoughData ? toPercent(groups.negative.length) : 0;
+        const neutralPct = enoughData
           ? Math.max(0, 100 - positivePct - negativePct)
           : 0;
 
-        const topWords = (map, limit = 5) =>
-          [...map.entries()]
-            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"))
-            .slice(0, limit)
-            .map(([word, count]) => ({ word, count }));
+        function topicCountsFor(group){
+          const map = new Map();
+          for (const row of group){
+            for (const t of row.matched){
+              // 해당 감정 그룹에 맞는 톤의 주제만 우선 집계.
+              // 중립 그룹에서는 neutral 주제를, 없으면 기타 정보성으로 처리.
+              if (
+                (row.tone === "positive" && t.tone === "positive") ||
+                (row.tone === "negative" && t.tone === "negative") ||
+                (row.tone === "neutral" && t.tone === "neutral")
+              ){
+                map.set(t.label, (map.get(t.label) || 0) + 1);
+              }
+            }
+          }
+          return [...map.entries()]
+            .sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0],"ko"))
+            .map(([label,count]) => ({label,count}));
+        }
+
+        const topicGroups = {
+          positive: topicCountsFor(groups.positive),
+          neutral: topicCountsFor(groups.neutral),
+          negative: topicCountsFor(groups.negative)
+        };
+
+        function oneLineSummary(tone, count, topics){
+          if (!count) {
+            if (tone === "positive") return "뚜렷한 긍정 반응은 아직 많지 않아요.";
+            if (tone === "negative") return "뚜렷한 불편·아쉬움 반응은 거의 없어요.";
+            return "정보성·일반 언급으로 분류된 글은 많지 않아요.";
+          }
+          const top = topics.slice(0,2).map(x=>x.label);
+          if (tone === "positive"){
+            return top.length
+              ? `${top.join("과 ")}에 대한 긍정 반응이 주로 보여요.`
+              : "전반적으로 만족하거나 추천하는 반응이 보여요.";
+          }
+          if (tone === "negative"){
+            return top.length
+              ? `${top.join("과 ")} 관련 아쉬움이 일부 보여요.`
+              : "일부 후기에서 불편하거나 아쉽다는 반응이 보여요.";
+          }
+          return top.length
+            ? `${top.join("과 ")} 중심의 정보성 글이 많아요.`
+            : "장소 소개·이용 정보 중심의 중립적인 글이 많아요.";
+        }
+
+        // 화면 하단용: 사람이 알아보기 쉬운 주요 반응 키워드
+        const readableKeywords = [
+          ...topicGroups.positive.slice(0,3).map(x=>({...x,tone:"positive"})),
+          ...topicGroups.neutral.slice(0,2).map(x=>({...x,tone:"neutral"})),
+          ...topicGroups.negative.slice(0,3).map(x=>({...x,tone:"negative"}))
+        ].sort((a,b)=>b.count-a.count).slice(0,6);
 
         const reviews = items.slice(0, 4).map((item) => ({
           title: stripHtml(item.title),
@@ -234,12 +288,25 @@ export default {
             neutral: neutralPct,
             negative: negativePct,
             sampleSize,
-            basis: "네이버 블로그 검색 상위 결과의 제목·요약문 키워드 기준"
+            enoughData,
+            minimumSampleSize: 5,
+            basis: "네이버 블로그 검색 상위 최대 20건의 제목·요약문 기준 자동 분류"
           },
-          keywords: {
-            positive: topWords(posCounts),
-            negative: topWords(negCounts)
-          }
+          sentimentDetails: {
+            positive: {
+              count: groups.positive.length,
+              summary: oneLineSummary("positive", groups.positive.length, topicGroups.positive)
+            },
+            neutral: {
+              count: groups.neutral.length,
+              summary: oneLineSummary("neutral", groups.neutral.length, topicGroups.neutral)
+            },
+            negative: {
+              count: groups.negative.length,
+              summary: oneLineSummary("negative", groups.negative.length, topicGroups.negative)
+            }
+          },
+          reactionKeywords: readableKeywords
         });
 
       } catch (error) {
