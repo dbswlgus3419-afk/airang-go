@@ -66,7 +66,7 @@ footer{margin-top:40px;padding:28px 0 80px;border-top:1px solid var(--line);colo
 .snsTab.on{background:#292621;color:#fff}
 .snsCards{display:flex;gap:10px;overflow:auto;padding:2px 2px 12px;scrollbar-width:none}.snsCards::-webkit-scrollbar{display:none}
 .snsCard{flex:0 0 155px;background:#fff;border:1px solid var(--line);border-radius:15px;overflow:hidden;box-shadow:0 4px 14px rgba(55,45,35,.05);cursor:pointer}
-.snsPic{height:104px;background:#efede9;position:relative}.snsPic img{width:100%;height:100%;object-fit:cover}.snsRank{position:absolute;top:7px;left:7px;background:#fff;border-radius:999px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:950}
+.snsPic{height:104px;background:#efede9;position:relative}.snsPic img{width:100%;height:100%;object-fit:cover}.snsFallback{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:34px;background:linear-gradient(135deg,#eef3ef,#e4e9e4);color:#446254}.snsRank{position:absolute;top:7px;left:7px;background:#fff;border-radius:999px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:950}
 .snsInfo{padding:9px}.snsInfo b{font-size:13px;line-height:1.35;display:block}.snsInfo span{font-size:10px;color:var(--muted);display:block;margin-top:4px}
 .hierarchy{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:9px}
 .hierarchy select{height:42px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 9px}.hierarchy select:disabled{background:#f2f1ee;color:#aaa39a;cursor:not-allowed;border-color:#e6e1d9}
@@ -126,7 +126,7 @@ footer{margin-top:40px;padding:28px 0 80px;border-top:1px solid var(--line);colo
 
 
 <section class="snsSection">
- <div class="snsHead"><div><h2>🔥 내 저장목록 속 오늘의 SNS 핫플</h2><p>나들이랩 공개 추천과 내 저장목록이 겹치는 장소만 보여줘요 · <span id="snsUpdated">자동 갱신</span></p></div></div>
+ <div class="snsHead"><div><h2>🔥 내 저장목록 속 오늘의 SNS 핫플</h2><p>나들이랩 각 채널 6곳 중 내 저장목록에 있는 장소만 보여줘요 · <span id="snsUpdated">자동 갱신</span></p></div></div>
  <div class="snsTabs"><button class="snsTab on" data-sns="인스타그램">인스타그램</button><button class="snsTab" data-sns="유튜브">유튜브</button><button class="snsTab" data-sns="쇼츠">쇼츠</button></div>
  <div class="snsCards" id="snsCards"></div>
 </section>
@@ -433,9 +433,17 @@ function buildMatchedHot(list){
  }).filter(Boolean);
 }
 
+function updateSnsTabCounts(){
+ $$('.snsTab').forEach(b=>{
+   const key=b.dataset.sns;
+   const count=(SNS_HOT[key]||[]).length;
+   b.textContent=`${key} ${count}/6`;
+ });
+}
+
 function renderSNS(){
- const arr=SNS_HOT[snsPlatform]||[];
- snsCards.innerHTML=arr.length?arr.map(x=>`<article class="snsCard" onclick="openDetail('${x.placeId}')"><div class="snsPic">${x.thumb?`<img referrerpolicy="no-referrer" src="${esc(x.thumb)}">`:'<div class="noimg">📍</div>'}<span class="snsRank">${x.rank}</span></div><div class="snsInfo"><b>${esc(x.name)}</b><span>${esc([x.province,x.city].filter(Boolean).join(' '))}</span></div></article>`).join(''):'<div class="pending" style="min-width:100%">오늘 SNS 핫플 중 내 저장목록과 겹치는 장소가 없어요.</div>';
+ const arr=(SNS_HOT[snsPlatform]||[]).slice(0,6);
+ snsCards.innerHTML=arr.length?arr.map(x=>`<article class="snsCard" onclick="openDetail('${x.placeId}')"><div class="snsPic">${x.thumb?`<img referrerpolicy="no-referrer" src="${esc(x.thumb)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="snsFallback" style="display:none">📍</div>`:'<div class="snsFallback">📍</div>'}<span class="snsRank">${x.rank}</span></div><div class="snsInfo"><b>${esc(x.name)}</b><span>${esc([x.province,x.city].filter(Boolean).join(' '))}</span></div></article>`).join(''):'<div class="pending" style="min-width:100%">오늘 SNS 핫플 6곳 중 내 저장목록과 겹치는 장소가 없어요.</div>';
 }
 
 async function loadSNSHot(){
@@ -450,6 +458,7 @@ async function loadSNSHot(){
      '유튜브':buildMatchedHot(data.youtube),
      '쇼츠':buildMatchedHot(data.shorts)
    };
+   updateSnsTabCounts();
    const d=data.fetchedAt?new Date(data.fetchedAt):new Date();
    if(typeof snsUpdated!=='undefined'&&!Number.isNaN(d.getTime())){
      snsUpdated.textContent=`${d.getMonth()+1}/${d.getDate()} 자동 갱신`;
