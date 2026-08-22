@@ -97,7 +97,7 @@ export default {
           const apiUrl =
             "https://naverapihub.apigw.ntruss.com/search/v1/blog" +
             "?query=" + encodeURIComponent(query) +
-            "&display=20&start=1&sort=sim&format=json";
+            "&display=30&start=1&sort=sim&format=json";
 
           const response = await fetch(apiUrl, {
             headers: {
@@ -191,7 +191,29 @@ export default {
           { key:"staff", label:"직원 응대", pos:["친절","응대 좋","설명 잘"], neg:["불친절","응대 아쉽","설명 부족"] },
 
           // 예약/운영
-          { key:"reservation", label:"예약", pos:["예약 편","예약 쉬"], neg:["예약 어렵","예약 힘","예약 불편"] }
+          { key:"reservation", label:"예약", pos:["예약 편","예약 쉬"], neg:["예약 어렵","예약 힘","예약 불편"] },
+
+          // 음식/먹거리
+          { key:"foodTaste", label:"음식", pos:["맛있","맛이 좋","맛도 좋"], neg:["맛없","맛이 없","맛은 별로"] },
+          { key:"foodOptions", label:"먹거리", pos:["먹거리 많","식당 많","카페 있","먹을 곳 많"], neg:["먹거리 부족","식당 없","먹을 곳 없"] },
+
+          // 유모차/계단/육아 편의
+          { key:"stroller", label:"유모차", pos:["유모차 편","유모차 이동 편","유모차 가능","엘리베이터 있"], neg:["유모차 불편","유모차 힘","유모차 어렵","유모차 이동 불편"] },
+          { key:"stairs", label:"계단", pos:["계단 적","엘리베이터"], neg:["계단 많","계단이 많","계단 때문에"] },
+          { key:"babyChair", label:"유아의자", pos:["유아의자 있","아기의자 있","아기 의자 있","하이체어 있"], neg:["유아의자 없","아기의자 없","아기 의자 없"] },
+
+          // 자연환경/벌레
+          { key:"bugs", label:"벌레", pos:["벌레 없","모기 없"], neg:["벌레 많","모기 많","벌레가 많","모기가 많"] },
+
+          // 전문성/신뢰
+          { key:"professional", label:"전문성", pos:["전문적","전문성 있","설명 전문","체계적"], neg:["전문성 부족","설명 부족"] },
+          { key:"trust", label:"신뢰감", pos:["신뢰가 가","신뢰감","믿음이 가","안심"], neg:["신뢰가 안","믿음이 안"] },
+          { key:"ordinary", label:"특별함", pos:[], neg:["평범","무난","특별하지 않","그냥 그랬"] },
+
+          // 안전/재방문/시간
+          { key:"safety", label:"안전", pos:["안전하","안심","안전하게"], neg:["위험하","위험해","안전 주의","조심해야"] },
+          { key:"revisit", label:"재방문", pos:["재방문","또 가고","다시 가고","또 오고"], neg:["한번이면 충분","다시는 안","재방문 안"] },
+          { key:"duration", label:"체류시간", pos:["오래 놀","하루종일","시간 가는 줄"], neg:["금방 끝","금방 둘러","할 게 금방"] }
         ];
 
         function detectAspects(text){
@@ -271,13 +293,19 @@ export default {
             kidFun:"아이가 즐거워함", temperature:"시원함", clean:"깨끗함", price:"가격 합리적",
             distance:"거리 가까움", parking:"주차 편리", toilet:"화장실 편리", wait:"대기 짧음",
             crowd:"한적함", space:"공간 넓음", rest:"쉴 곳 많음", program:"프로그램 알참",
-            staff:"직원 친절", reservation:"예약 편리"
+            staff:"친절함", reservation:"예약 편리", foodTaste:"맛있음", foodOptions:"먹거리 편리",
+            stroller:"유모차 편리", stairs:"계단 적음", babyChair:"유아의자 있음", bugs:"벌레 적음",
+            professional:"전문적임", trust:"신뢰감 있음", ordinary:"평범함", safety:"안전함",
+            revisit:"재방문 의향", duration:"오래 놀기 좋음"
           };
           const negativeMap={
             kidFun:"아이 지루함", temperature:"더움·답답함", clean:"청결 아쉬움", price:"비쌈",
             distance:"거리 멂", parking:"주차 불편", toilet:"화장실 불편", wait:"대기 김",
             crowd:"혼잡함", space:"공간 좁음", rest:"쉴 곳 부족", program:"프로그램 아쉬움",
-            staff:"응대 아쉬움", reservation:"예약 불편"
+            staff:"불친절함", reservation:"예약 불편", foodTaste:"맛없음", foodOptions:"먹거리 부족",
+            stroller:"유모차 불편", stairs:"계단 많음", babyChair:"유아의자 없음", bugs:"벌레 많음",
+            professional:"전문성 아쉬움", trust:"신뢰감 부족", ordinary:"평범함", safety:"안전 주의",
+            revisit:"한번이면 충분", duration:"금방 둘러봄"
           };
 
           if(stat.pos>stat.neg) return {label:positiveMap[stat.key]||stat.label,tone:"positive"};
@@ -369,10 +397,92 @@ export default {
             keywordMap.set(id,rec);
           }
         }
+        const keywordMinCount = sampleSize >= 20 ? 3 : sampleSize >= 10 ? 2 : 1;
         const readableKeywords=[...keywordMap.values()]
-          .filter(x=>x.count>=1)
+          .filter(x=>x.count>=keywordMinCount)
           .sort((a,b)=>b.count-a.count || a.label.localeCompare(b.label,"ko"))
           .slice(0,8);
+
+        // -----------------------------------------------------
+        // 연령 언급 분석
+        // 단순 나이 등장만으로 추천 처리하지 않고 긍정/부정 맥락을 함께 확인
+        // -----------------------------------------------------
+        const agePositive = ["좋","추천","재밌","재미","즐거","신나","잘 놀","딱","만족","또 가","할 게 많","하기 좋"];
+        const ageNegative = ["어렵","무서","지루","할 게 없","너무 어리","비추천","못하","힘들","아직 이르","재미없"];
+
+        function ageMentions(text){
+          const found = new Set();
+
+          // 살/세 표현
+          const re = /(?:만\s*)?([0-9]{1,2})\s*(?:살|세)\b/g;
+          let m;
+          while((m=re.exec(text))!==null){
+            const age=Number(m[1]);
+            if(age>=0 && age<=13) found.add(age);
+          }
+
+          // 개월 표현: 한국식 화면 연령을 단순화하여 0~11개월=0세, 12~23=1세 ...
+          const monthRe=/([0-9]{1,2})\s*개월/g;
+          while((m=monthRe.exec(text))!==null){
+            const months=Number(m[1]);
+            if(months>=0 && months<=120) found.add(Math.floor(months/12));
+          }
+
+          if(text.includes("두돌")) found.add(2);
+          if(text.includes("돌아기") || text.includes("돌 아기")) found.add(1);
+
+          // 유치원생/초등학생은 별도 그룹
+          if(text.includes("유치원생") || text.includes("유치원")) found.add("kindergarten");
+          if(text.includes("초등학생") || /초[1-6]\b/.test(text)) found.add("elementary");
+
+          return [...found];
+        }
+
+        const ageMap=new Map();
+        for(const row of analysed){
+          const ages=ageMentions(row.text);
+          if(!ages.length) continue;
+
+          const p=agePositive.some(w=>row.text.includes(w));
+          const n=ageNegative.some(w=>row.text.includes(w));
+
+          for(const age of ages){
+            const rec=ageMap.get(age)||{age,positive:0,negative:0,neutral:0,total:0};
+            rec.total++;
+            if(p && !n) rec.positive++;
+            else if(n && !p) rec.negative++;
+            else rec.neutral++;
+            ageMap.set(age,rec);
+          }
+        }
+
+        const ageResults=[...ageMap.values()].sort((a,b)=>{
+          const av=typeof a.age==="number"?a.age:99;
+          const bv=typeof b.age==="number"?b.age:99;
+          return av-bv;
+        });
+
+        const recommendedAges=ageResults
+          .filter(x=>x.positive>=2 && x.positive>x.negative)
+          .sort((a,b)=>b.positive-a.positive)
+          .slice(0,5);
+
+        function ageDisplay(age){
+          if(age==="kindergarten") return "유치원생";
+          if(age==="elementary") return "초등학생";
+          if(age===0) return "돌 전 아기";
+          return `${age}세`;
+        }
+
+        let ageSummary="";
+        if(recommendedAges.length){
+          const top=recommendedAges.slice(0,3).map(x=>ageDisplay(x.age));
+          ageSummary=`${top.join("·")} 아이와 이용하기 좋다는 후기가 비교적 많이 보여요.`;
+        }else if(ageResults.length){
+          ageSummary="연령 언급은 있지만 추천 연령을 판단할 만큼 긍정적인 관련 후기가 충분하지 않아요.";
+        }else{
+          ageSummary="아직 추천 연령을 판단할 만큼 관련 후기가 충분하지 않아요.";
+        }
 
         const reviews = items.slice(0, 4).map((item) => ({
           title: stripHtml(item.title),
@@ -385,7 +495,7 @@ export default {
 
         return json({
           ok: true,
-          analysisVersion: "reaction-v4",
+          analysisVersion: "reaction-v5-30",
           query,
           attemptedQueries: queryCandidates,
           total: Number(data?.total || 0),
@@ -413,7 +523,19 @@ export default {
               lines: makeSummaryLines("negative")
             }
           },
-          reactionKeywords: readableKeywords
+          reactionKeywords: readableKeywords,
+          keywordMinimumCount: keywordMinCount,
+          ageAnalysis: {
+            summary: ageSummary,
+            results: ageResults.map(x=>({
+              age: x.age,
+              label: ageDisplay(x.age),
+              positive: x.positive,
+              negative: x.negative,
+              neutral: x.neutral,
+              total: x.total
+            }))
+          }
         });
 
       } catch (error) {
