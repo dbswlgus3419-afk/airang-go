@@ -2,6 +2,19 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    // =====================================================
+    // 0. 런타임 Secret 확인용
+    // =====================================================
+    if (
+      url.pathname === "/api/env-check" ||
+      url.pathname === "/api/env-check/"
+    ) {
+      return Response.json({
+        hasClientId: !!env.NAVER_CLIENT_ID,
+        hasClientSecret: !!env.NAVER_CLIENT_SECRET
+      });
+    }
+
     const json = (data, init = {}) =>
       new Response(JSON.stringify(data), {
         ...init,
