@@ -518,8 +518,10 @@ async function loadBlogReviews(p){
    if(age.summary){
      const dist=Array.isArray(age.distribution)?age.distribution:[];
      summary.innerHTML+=`<div class="ageInsight">
-       <div class="ageInsightHead"><strong>👶 후기에서 많이 언급된 아이 연령대</strong><span>전체 후기 언급 기준</span></div>
-       <div class="ageInsightText">${esc(age.summary)}</div>
+       <div class="ageInsightHead"><strong>👶 후기에서 많이 언급된 아이 연령대</strong><span>최대 100건 기준</span></div>
+       <div class="ageInsightText">${esc(age.summary)}
+${age.enoughData?`<br><b>연령 정보가 확인된 후기 ${Number(age.mentionReviewCount||0)}건 기준</b>`:""}
+</div>
        ${age.enoughData && dist.length
          ? `<div class="ageChart">${dist.map(x=>{
              const pct=Math.max(0,Math.min(100,Number(x.percentage||0)));
@@ -535,7 +537,7 @@ async function loadBlogReviews(p){
              </div>`;
            }).join('')}</div>`
          : `<div class="ageEmpty">분석한 후기에서 아이 연령이 구체적으로 언급된 내용을 찾지 못했어요.</div>`}
-       <div class="reactionGuide">※ 실제 이용객 연령 통계가 아니라, 분석한 블로그 후기 전체에서 언급된 아이 연령 표현의 비중이에요.</div>
+       <div class="reactionGuide">※ 실제 이용객 연령 통계가 아니라, 네이버 블로그 검색 상위 최대 100건에서 언급된 아이 연령 표현의 비중이에요.</div>
      </div>`;
    }
 
