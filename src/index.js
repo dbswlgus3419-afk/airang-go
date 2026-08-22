@@ -83,11 +83,20 @@ export default {
           .slice(0, 2)
           .join(" ");
 
+        const simplifiedPlace = place
+          .replace(/\([^)]*\)/g, " ")
+          .replace(/\s*(본점|지점)$/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+
         const queryCandidates = [
           place,
-          `${place} 후기`,
-          areaTokens ? `${place} ${areaTokens}` : "",
-          areaTokens ? `${place.replace(/\s*(점|지점)$/,"")} ${areaTokens}` : ""
+          simplifiedPlace,
+          `${simplifiedPlace} 아이랑`,
+          `${simplifiedPlace} 아이와`,
+          `${simplifiedPlace} 후기`,
+          `${simplifiedPlace} 체험`,
+          areaTokens ? `${simplifiedPlace} ${areaTokens}` : ""
         ]
           .map(v => v.trim())
           .filter(Boolean)
@@ -105,50 +114,29 @@ export default {
               "X-NCP-APIGW-API-KEY": env.NAVER_CLIENT_SECRET
             }
           });
-
           const raw = await response.text();
-
-          if (!response.ok) {
-            let detail = raw;
-            try {
-              const parsed = JSON.parse(raw);
-              detail =
-                parsed?.errorMessage ||
-                parsed?.message ||
-                parsed?.error?.message ||
-                raw;
-            } catch (_) {}
-
-            const err = new Error("네이버 블로그 검색 API 호출 실패");
-            err.status = response.status;
-            err.detail = detail;
-            throw err;
-          }
-
-          try {
-            return JSON.parse(raw);
-          } catch (_) {
-            throw new Error("네이버 API 응답을 JSON으로 읽지 못했습니다.");
-          }
+          if (!response.ok) return {total:0,items:[]};
+          try { return JSON.parse(raw); } catch (_) { return {total:0,items:[]}; }
         }
 
-        let data = null;
-        let query = queryCandidates[0];
+        // 정확한 장소명 검색의 전체 결과 수는 화면의 "총 개수"로 사용
+        const primaryData = await searchBlog(place);
+        const primaryTotal = Number(primaryData?.total || 0);
 
+        // 여러 검색어 결과를 합치고 URL 기준 중복 제거, 분석은 최대 30건
+        const merged = new Map();
         for (const candidate of queryCandidates) {
-          const result = await searchBlog(candidate);
-          data = result;
-          query = candidate;
-
-          if (
-            Number(result?.total || 0) > 0 ||
-            (Array.isArray(result?.items) && result.items.length > 0)
-          ) {
-            break;
+          const result = candidate === place ? primaryData : await searchBlog(candidate);
+          for (const item of (Array.isArray(result?.items) ? result.items : [])) {
+            const key = item.link || `${item.title}|${item.postdate}`;
+            if (!merged.has(key)) merged.set(key, item);
           }
+          if (merged.size >= 30) break;
         }
 
-        const items = Array.isArray(data?.items) ? data.items : [];
+        const items = [...merged.values()].slice(0,30);
+        const data = primaryData || {total:0,items:[]};
+        const query = place;
 
         // -----------------------------------------------------
         // 반응 분석 v4: "방문 판단 포인트" 중심
@@ -432,8 +420,10 @@ export default {
           if(text.includes("돌아기") || text.includes("돌 아기")) found.add(1);
 
           // 유치원생/초등학생은 별도 그룹
-          if(text.includes("유치원생") || text.includes("유치원")) found.add("kindergarten");
-          if(text.includes("초등학생") || /초[1-6]\b/.test(text)) found.add("elementary");
+          if(text.includes("유치원생") || text.includes("유치원") || text.includes("미취학")) found.add("kindergarten");
+          if(text.includes("초등학생") || text.includes("초등") || /초[1-6]\b/.test(text)) found.add("elementary");
+          if(text.includes("영아") || text.includes("돌 전") || text.includes("돌전")) found.add(0);
+          if(text.includes("유아") || text.includes("어린이집")) found.add("preschool");
 
           return [...found];
         }
@@ -456,32 +446,93 @@ export default {
           }
         }
 
-        const ageResults=[...ageMap.values()].sort((a,b)=>{
-          const av=typeof a.age==="number"?a.age:99;
-          const bv=typeof b.age==="number"?b.age:99;
-          return av-bv;
-        });
+        // 화면용 8개 연령대 버킷
+        // 숫자가 명시된 경우 숫자 연령을 우선하고,
+        // "유치원생"처럼 숫자 없는 표현만 별도 그룹에 반영
+        const ageBuckets = [
+          { key:"1", label:"1세", positive:0, negative:0, neutral:0, total:0 },
+          { key:"2", label:"2세", positive:0, negative:0, neutral:0, total:0 },
+          { key:"3", label:"3세", positive:0, negative:0, neutral:0, total:0 },
+          { key:"4", label:"4세", positive:0, negative:0, neutral:0, total:0 },
+          { key:"5", label:"5세", positive:0, negative:0, neutral:0, total:0 },
+          { key:"kindergarten", label:"유치원생", positive:0, negative:0, neutral:0, total:0 },
+          { key:"elementaryLow", label:"초등 저학년", positive:0, negative:0, neutral:0, total:0 },
+          { key:"elementaryHigh", label:"초등 고학년", positive:0, negative:0, neutral:0, total:0 }
+        ];
+        const bucketMap = new Map(ageBuckets.map(x=>[x.key,x]));
 
-        const recommendedAges=ageResults
-          .filter(x=>x.positive>=2 && x.positive>x.negative)
-          .sort((a,b)=>b.positive-a.positive)
-          .slice(0,5);
-
-        function ageDisplay(age){
-          if(age==="kindergarten") return "유치원생";
-          if(age==="elementary") return "초등학생";
-          if(age===0) return "돌 전 아기";
-          return `${age}세`;
+        function addAgeBucket(key, tone){
+          const b=bucketMap.get(String(key));
+          if(!b) return;
+          b.total++;
+          if(tone==="positive") b.positive++;
+          else if(tone==="negative") b.negative++;
+          else b.neutral++;
         }
 
+        for(const row of analysed){
+          const text=row.text;
+
+          // 정확한 숫자 나이: 1~5세
+          const exactAges=new Set();
+          let m;
+          const ageRe=/(?:만\s*)?([1-5])\s*(?:살|세)\b/g;
+          while((m=ageRe.exec(text))!==null) exactAges.add(Number(m[1]));
+
+          // 개월 수 → 1~5세 환산
+          const monthRe=/([0-9]{1,2})\s*개월/g;
+          while((m=monthRe.exec(text))!==null){
+            const months=Number(m[1]);
+            const age=Math.floor(months/12);
+            if(age>=1 && age<=5) exactAges.add(age);
+          }
+          if(text.includes("두돌")) exactAges.add(2);
+
+          for(const age of exactAges) addAgeBucket(String(age), row.tone);
+
+          // 정확한 숫자 나이가 없을 때만 유치원생 그룹 사용
+          if(!exactAges.size && (text.includes("유치원생") || text.includes("유치원") || text.includes("미취학"))){
+            addAgeBucket("kindergarten", row.tone);
+          }
+
+          // 초등 학년
+          let elementaryMatched=false;
+          const gradeRe=/초\s*([1-6])\b/g;
+          while((m=gradeRe.exec(text))!==null){
+            elementaryMatched=true;
+            const grade=Number(m[1]);
+            addAgeBucket(grade<=3 ? "elementaryLow" : "elementaryHigh", row.tone);
+          }
+          if(!elementaryMatched && text.includes("초등 저학년")) addAgeBucket("elementaryLow", row.tone);
+          if(!elementaryMatched && text.includes("초등 고학년")) addAgeBucket("elementaryHigh", row.tone);
+        }
+
+        // 추천 비중은 긍정 맥락으로 잡힌 연령 언급 전체를 100으로 계산
+        const positiveAgeMentions=ageBuckets.reduce((sum,x)=>sum+x.positive,0);
+        const ageDistribution=ageBuckets.map(x=>({
+          ...x,
+          percentage: positiveAgeMentions ? Math.round((x.positive/positiveAgeMentions)*100) : 0
+        }));
+
+        // 반올림 합계 보정
+        if(positiveAgeMentions){
+          const sumPct=ageDistribution.reduce((s,x)=>s+x.percentage,0);
+          if(sumPct!==100){
+            const top=ageDistribution.reduce((a,b)=>a.positive>=b.positive?a:b);
+            top.percentage=Math.max(0,top.percentage+(100-sumPct));
+          }
+        }
+
+        const ageDataEnough = positiveAgeMentions >= 3;
+        const topAge = ageDataEnough
+          ? [...ageDistribution].sort((a,b)=>b.percentage-a.percentage)[0]
+          : null;
+
         let ageSummary="";
-        if(recommendedAges.length){
-          const top=recommendedAges.slice(0,3).map(x=>ageDisplay(x.age));
-          ageSummary=`${top.join("·")} 아이와 이용하기 좋다는 후기가 비교적 많이 보여요.`;
-        }else if(ageResults.length){
-          ageSummary="연령 언급은 있지만 추천 연령을 판단할 만큼 긍정적인 관련 후기가 충분하지 않아요.";
+        if(ageDataEnough && topAge && topAge.percentage>0){
+          ageSummary=`후기에서는 ${topAge.label} 아이와 이용하기 좋다는 긍정 언급 비중이 가장 높아요.`;
         }else{
-          ageSummary="아직 추천 연령을 판단할 만큼 관련 후기가 충분하지 않아요.";
+          ageSummary="아직 추천 연령대를 판단할 만큼 관련 후기가 충분하지 않아요.";
         }
 
         const reviews = items.slice(0, 4).map((item) => ({
@@ -495,10 +546,11 @@ export default {
 
         return json({
           ok: true,
-          analysisVersion: "reaction-v5-30",
+          analysisVersion: "reaction-v7-age-chart",
           query,
           attemptedQueries: queryCandidates,
-          total: Number(data?.total || 0),
+          total: primaryTotal,
+          analysedCount: sampleSize,
           reviews,
           sentiment: {
             positive: positivePct,
@@ -507,7 +559,7 @@ export default {
             sampleSize,
             enoughData,
             minimumSampleSize,
-            basis: "네이버 블로그 검색 상위 최대 20건의 제목·요약문 기준 자동 분류"
+            basis: "확장 검색으로 수집한 네이버 블로그 검색 결과 최대 30건의 제목·요약문 기준 자동 분류"
           },
           sentimentDetails: {
             positive: {
@@ -527,14 +579,9 @@ export default {
           keywordMinimumCount: keywordMinCount,
           ageAnalysis: {
             summary: ageSummary,
-            results: ageResults.map(x=>({
-              age: x.age,
-              label: ageDisplay(x.age),
-              positive: x.positive,
-              negative: x.negative,
-              neutral: x.neutral,
-              total: x.total
-            }))
+            enoughData: ageDataEnough,
+            positiveMentionCount: positiveAgeMentions,
+            distribution: ageDistribution
           }
         });
 
