@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>아이랑 어디갈까 V3.3</title>
+<title>아이랑 어디갈까</title>
 <link rel="preconnect" href="https://unpkg.com"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{
@@ -126,7 +126,7 @@ footer{margin-top:40px;padding:28px 0 80px;border-top:1px solid var(--line);colo
 
 
 <section class="snsSection">
- <div class="snsHead"><div><h2>🔥 내 저장목록 속 오늘의 SNS 핫플</h2><p>나들이랩 공개 추천과 내 저장목록이 겹치는 장소만 보여줘요 · 8/22 갱신 기준</p></div></div>
+ <div class="snsHead"><div><h2>🔥 내 저장목록 속 오늘의 SNS 핫플</h2><p>나들이랩 공개 추천과 내 저장목록이 겹치는 장소만 보여줘요 · <span id="snsUpdated">자동 갱신</span></p></div></div>
  <div class="snsTabs"><button class="snsTab on" data-sns="인스타그램">인스타그램</button><button class="snsTab" data-sns="유튜브">유튜브</button><button class="snsTab" data-sns="쇼츠">쇼츠</button></div>
  <div class="snsCards" id="snsCards"></div>
 </section>
@@ -392,13 +392,80 @@ updateScenarioUI();
 
 render();
 
-const SNS_HOT={"인스타그램":[{"rank":2,"hotName":"그라운드플래닛 서울대공원점","placeId":"12115604","name":"서울대공원","thumb":"https://ldb-phinf.pstatic.net/20170403_66/1491217081772nIH5y_JPEG/186353598820945_0.jpeg","province":"경기","city":"과천시"},{"rank":4,"hotName":"서울어린이대공원","placeId":"11796387","name":"서울어린이대공원","thumb":"https://ldb-phinf.pstatic.net/20260602_173/1780374760104Tgk6y_JPEG/%C0%A3%C4%C4%C1%A4%BF%F8.jpg","province":"서울","city":"광진구"},{"rank":5,"hotName":"롯데월드 아쿠아리움","placeId":"35750830","name":"롯데월드 아쿠아리움","thumb":"https://ldb-phinf.pstatic.net/20211202_124/1638425158345uSVNe_JPEG/thm_aq_lotte_1000_x.jpg","province":"서울","city":"송파구"},{"rank":6,"hotName":"서울상상나라","placeId":"31949741","name":"서울상상나라","thumb":"https://ldb-phinf.pstatic.net/20260731_272/17854861723111nFcC_JPEG/249C8335.jpg","province":"서울","city":"광진구"}],"유튜브":[{"rank":1,"hotName":"서대문독립공원","placeId":"13351769","name":"서대문독립공원","thumb":"https://ldb-phinf.pstatic.net/20150831_3/1441026347235onyDv_JPEG/116363517879766_4.jpg","province":"서울","city":"서대문구"},{"rank":3,"hotName":"국립중앙박물관","placeId":"11620570","name":"국립중앙박물관","thumb":"http://blogfiles.naver.net/MjAyNDAxMjdfMjg4/MDAxNzA2MzQ4MTQ1Mjk0.iREiUCzkxLpV-VVrKDcGm_qNRKGClgrh7PgKFiLKrnog.PJCUn0z7fTm9_Vcz6NwIlJaKUK57FfjcVCrlI_6u0Cwg.JPEG.allalone815/20240126%A3%DF102407.jpg#900x675","province":"서울","city":"용산구"},{"rank":5,"hotName":"경기도어린이박물관","placeId":"13172610","name":"경기도어린이박물관","thumb":"https://ldb-phinf.pstatic.net/20210914_5/1631600951710hqV6o_JPEG/JfTOBnt_fDfTRrlvlx5x5fc0.jpg","province":"경기","city":"용인시"}],"쇼츠":[{"rank":1,"hotName":"키자니아 부산","placeId":"37746621","name":"키자니아 부산","thumb":"https://ldb-phinf.pstatic.net/20250502_194/1746148689957tRxqb_JPEG/25%B3%E2_4%BF%F9_%BD%C5%BC%BC%B0%E8%BF%DC%BA%AE%B1%A4%B0%ED_HD%C7%F6%B4%EB_%BC%D2%C0%E7.jpg","province":"부산","city":"해운대구"},{"rank":2,"hotName":"서울대공원 동물원","placeId":"12115604","name":"서울대공원","thumb":"https://ldb-phinf.pstatic.net/20170403_66/1491217081772nIH5y_JPEG/186353598820945_0.jpeg","province":"경기","city":"과천시"},{"rank":3,"hotName":"국립현대미술관 서울","placeId":"19691123","name":"국립현대미술관 서울","thumb":"https://ldb-phinf.pstatic.net/20240517_152/1715921190072PUr2C_JPEG/S0001%2B.jpg","province":"서울","city":"종로구"},{"rank":4,"hotName":"세계자동차&피아노박물관","placeId":"12818600","name":"세계자동차&피아노 박물관","thumb":"https://ldb-phinf.pstatic.net/20221219_72/1671427395844X5OuM_JPEG/0.jpg","province":"제주","city":"서귀포시"},{"rank":5,"hotName":"서울공예박물관 어린이박물관","placeId":"1628634311","name":"서울공예박물관 어린이박물관","thumb":"https://ldb-phinf.pstatic.net/20230719_32/1689724298436qjFMV_JPEG/%B1%B3%C0%B0%B5%BF_2.jpg","province":"서울","city":"종로구"},{"rank":6,"hotName":"아쿠아플라넷 여수","placeId":"21529770","name":"아쿠아플라넷 여수","thumb":"https://ldb-phinf.pstatic.net/20260720_86/1784539143046qzwIP_JPEG/%BF%A9%BC%F6AQ_%BF%A9%B8%A7_%BD%E6%B3%D7%C0%CF_2.jpg","province":"기타","city":"여수시"}]};
+let SNS_HOT={"인스타그램":[],"유튜브":[],"쇼츠":[]};
 let snsPlatform='인스타그램';
+
+function normPlaceName(v){
+ return String(v||'').normalize('NFKC').toLowerCase().replace(/[^0-9a-z가-힣]/g,'');
+}
+
+function findSavedPlace(hotName){
+ const n=normPlaceName(hotName);
+ if(!n)return null;
+ // 1차: 공백/기호 차이만 무시한 정확 일치
+ let p=PLACES.find(x=>normPlaceName(x.name)===n);
+ if(p)return p;
+ // 2차: 괄호 안 부가명칭을 제거한 경우만 추가 확인 (과도한 유사매칭은 하지 않음)
+ const base=String(hotName||'').replace(/\([^)]*\)/g,'').trim();
+ const bn=normPlaceName(base);
+ if(bn&&bn!==n){
+   p=PLACES.find(x=>normPlaceName(x.name)===bn);
+   if(p)return p;
+ }
+ return null;
+}
+
+function buildMatchedHot(list){
+ return (Array.isArray(list)?list:[]).map((item,i)=>{
+   const hotName=typeof item==='string'?item:item?.name;
+   const p=findSavedPlace(hotName);
+   if(!p)return null;
+   return {
+     rank:i+1,
+     hotName,
+     sourceUrl:typeof item==='object'?item?.url:'',
+     placeId:String(p.id),
+     name:p.name,
+     thumb:p.thumb||'',
+     province:p.province||'',
+     city:p.city||''
+   };
+ }).filter(Boolean);
+}
+
 function renderSNS(){
  const arr=SNS_HOT[snsPlatform]||[];
- snsCards.innerHTML=arr.length?arr.map(x=>`<article class="snsCard" onclick="openDetail('${x.placeId}')"><div class="snsPic">${x.thumb?`<img referrerpolicy="no-referrer" src="${esc(x.thumb)}">`:'<div class="noimg">📍</div>'}<span class="snsRank">${x.rank}</span></div><div class="snsInfo"><b>${esc(x.name)}</b><span>${esc([x.province,x.city].filter(Boolean).join(' '))}</span></div></article>`).join(''):'<div class="pending" style="min-width:100%">현재 내 저장목록과 겹치는 핫플이 없어요.</div>';
+ snsCards.innerHTML=arr.length?arr.map(x=>`<article class="snsCard" onclick="openDetail('${x.placeId}')"><div class="snsPic">${x.thumb?`<img referrerpolicy="no-referrer" src="${esc(x.thumb)}">`:'<div class="noimg">📍</div>'}<span class="snsRank">${x.rank}</span></div><div class="snsInfo"><b>${esc(x.name)}</b><span>${esc([x.province,x.city].filter(Boolean).join(' '))}</span></div></article>`).join(''):'<div class="pending" style="min-width:100%">오늘 SNS 핫플 중 내 저장목록과 겹치는 장소가 없어요.</div>';
 }
-$$('.snsTab').forEach(b=>b.onclick=()=>{snsPlatform=b.dataset.sns;$$('.snsTab').forEach(x=>x.classList.toggle('on',x===b));renderSNS()});
-renderSNS();
+
+async function loadSNSHot(){
+ snsCards.innerHTML='<div class="pending" style="min-width:100%">오늘의 SNS 핫플을 확인하고 있어요…</div>';
+ try{
+   const r=await fetch('/api/sns-hot',{cache:'no-store'});
+   if(!r.ok)throw new Error('HTTP '+r.status);
+   const data=await r.json();
+   if(!data.ok)throw new Error(data.error||'SNS API 오류');
+   SNS_HOT={
+     '인스타그램':buildMatchedHot(data.instagram),
+     '유튜브':buildMatchedHot(data.youtube),
+     '쇼츠':buildMatchedHot(data.shorts)
+   };
+   const d=data.fetchedAt?new Date(data.fetchedAt):new Date();
+   if(typeof snsUpdated!=='undefined'&&!Number.isNaN(d.getTime())){
+     snsUpdated.textContent=`${d.getMonth()+1}/${d.getDate()} 자동 갱신`;
+   }
+   renderSNS();
+ }catch(e){
+   console.error('SNS hot load failed',e);
+   snsCards.innerHTML='<div class="pending" style="min-width:100%">SNS 핫플을 불러오지 못했어요. 잠시 후 다시 확인해주세요.</div>';
+ }
+}
+
+$$('.snsTab').forEach(b=>b.onclick=()=>{
+ snsPlatform=b.dataset.sns;
+ $$('.snsTab').forEach(x=>x.classList.toggle('on',x===b));
+ renderSNS();
+});
+loadSNSHot();
 
 </script></body></html>
